@@ -34,7 +34,7 @@ async def login(body: UserLogin, db: Session = Depends(get_db)) -> TokenResponse
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
-    token = create_access_token({"sub": user.id})
+    token = create_access_token({"sub": str(user.id)})
     return TokenResponse(access_token=token)
 
 
