@@ -1,5 +1,7 @@
 import { BarChart3, TrendingUp, Wallet, ArrowUpRight } from "lucide-react";
 
+import { MarketDataSection } from "@/components/shared/market-data-section";
+
 const stats = [
   { label: "Portfolio Value", value: "$0.00", icon: Wallet },
   { label: "Today's Change", value: "+$0.00", icon: TrendingUp },
@@ -35,12 +37,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <div className="mt-8 rounded-xl border bg-card p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Market Overview</h2>
-          <p className="mt-2 text-muted-foreground">
-            Connect your data sources to view real-time market analytics.
-          </p>
-        </div>
+        <MarketDataSection />
       </div>
     </main>
   );
