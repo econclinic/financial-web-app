@@ -76,7 +76,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <Button className="w-full" disabled={submitting}>
+          <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? "Signing in…" : "Sign In"}
           </Button>
         </form>
