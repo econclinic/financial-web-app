@@ -1,7 +1,8 @@
-"""Mock market data service.
+"""Market data service.
 
-Replace the functions in this module with real API calls
-(e.g. Alpha Vantage, CoinGecko, Yahoo Finance) when ready.
+Uses real-time CoinGecko prices for crypto (BTC, ETH).
+Falls back to mock data for symbols not available on CoinGecko (e.g. AAPL).
+Price history remains mock for now.
 """
 
 import math
@@ -9,6 +10,7 @@ import random
 from datetime import datetime, timedelta, timezone
 
 from app.schemas.market_data import MarketQuote, PricePoint
+from app.services.market_data_service import get_live_prices, SYMBOL_TO_COINGECKO
 
 _SYMBOLS: dict[str, dict[str, float | str]] = {
     "BTC": {"name": "Bitcoin", "base_price": 62_450.00},
@@ -25,12 +27,27 @@ def _jitter(base: float, pct: float = 0.02) -> float:
 
 def get_latest_quotes() -> list[MarketQuote]:
     now = datetime.now(tz=timezone.utc)
+
+    crypto_symbols = [s for s in _SYMBOLS if s in SYMBOL_TO_COINGECKO]
+    try:
+        live = get_live_prices(crypto_symbols)
+    except Exception:
+        live = {}
+
     quotes: list[MarketQuote] = []
     for symbol, info in _SYMBOLS.items():
         base = float(info["base_price"])
-        price = round(_jitter(base), 2)
-        change = round(price - base, 2)
-        change_pct = round((change / base) * 100, 2)
+
+        if symbol in live:
+            price = round(live[symbol]["price"], 2)
+            change_24h = live[symbol].get("change_24h", 0.0)
+            change = round(price - base, 2)
+            change_pct = round(change_24h, 2)
+        else:
+            price = round(_jitter(base), 2)
+            change = round(price - base, 2)
+            change_pct = round((change / base) * 100, 2)
+
         quotes.append(
             MarketQuote(
                 symbol=symbol,
