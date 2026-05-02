@@ -9,7 +9,7 @@
 **AI Finance WebApp** is a modular financial web application that provides a dashboard for viewing market data, managing authentication, and (in the future) tracking portfolios.
 
 - **Typical user:** A retail investor or finance enthusiast who wants a single dashboard to monitor prices, manage a watchlist, and analyse market trends.
-- **Current maturity:** Early MVP. The app has JWT-based authentication and mock market data for three symbols. There is no real brokerage integration, portfolio tracking, or production database yet.
+- **Current maturity:** Early MVP. The app has JWT-based authentication, mock market data for three symbols, and a portfolio module for recording transactions and tracking positions. There is no real brokerage integration or production database yet.
 
 ---
 
@@ -160,6 +160,66 @@ frontend/src/lib/market-data.ts                # API client for market data
 
 ---
 
+### 4.3 Portfolio Module
+
+**Backend endpoints** (prefix: `/api/portfolio`):
+
+| Method | Route | Description | Auth required |
+|---|---|---|---|
+| POST | `/api/portfolio/transactions` | Record a new buy or sell transaction. Validates that sell quantity does not exceed owned quantity. | Yes (Bearer token) |
+| GET | `/api/portfolio/transactions` | List all transactions for the current user (newest first). | Yes (Bearer token) |
+| GET | `/api/portfolio/summary` | Return portfolio summary: total value, total invested, total P&L, and per-symbol positions with unrealized P&L. | Yes (Bearer token) |
+
+**Database model — `PortfolioTransaction`:**
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | Integer PK | Auto-increment |
+| `user_id` | Integer | FK to User (not enforced at DB level for SQLite compatibility) |
+| `symbol` | String | e.g. BTC, ETH, AAPL |
+| `asset_type` | Enum(`crypto`, `stock`) | Asset classification |
+| `transaction_type` | Enum(`buy`, `sell`) | Direction |
+| `quantity` | Float | Must be > 0 |
+| `price` | Float | Must be > 0 |
+| `timestamp` | DateTime (UTC) | Defaults to now |
+
+**Business logic (positions are calculated dynamically, no separate table):**
+- Position quantity = sum of buys − sum of sells per symbol.
+- Average buy price = weighted average of all buy transactions.
+- Current price fetched from the Market Data mock service.
+- Unrealized P&L = (current_price − avg_buy_price) × quantity.
+
+**Validation rules:**
+- Cannot sell more than the currently owned quantity.
+- Quantity and price must be > 0.
+- All endpoints require JWT authentication.
+
+**Frontend pages:**
+- `/portfolio` — Protected page showing summary cards (Total Value, Total Invested, P&L, Return %), positions table, portfolio allocation chart (Recharts), and transaction history table.
+- `/portfolio/new-transaction` — Form to record a new transaction with symbol selector, asset type, transaction type, quantity, and price fields. Redirects to `/portfolio` on success.
+- Navbar shows a "Portfolio" button when authenticated.
+
+**Key files:**
+
+```
+backend/app/api/v1/endpoints/portfolio.py   # Route handlers
+backend/app/models/portfolio.py             # PortfolioTransaction model
+backend/app/schemas/portfolio.py            # Pydantic request/response models
+backend/app/services/portfolio.py           # Position calculation, validation
+
+frontend/src/app/portfolio/page.tsx                   # Portfolio dashboard
+frontend/src/app/portfolio/new-transaction/page.tsx   # New transaction form
+frontend/src/lib/portfolio.ts                         # API client for portfolio
+```
+
+**Extending the portfolio module:**
+- Add support for more symbols by extending the market data service.
+- Add transaction editing and deletion endpoints.
+- Add historical portfolio value tracking over time.
+- Connect to a real brokerage API for automatic transaction import.
+
+---
+
 ## 5. Repository Structure
 
 ```
@@ -180,20 +240,24 @@ financial-web-app/
 │       │       └── endpoints/
 │       │           ├── health.py     # GET /api/v1/health
 │       │           ├── auth.py       # POST register, login; GET me
-│       │           └── market_data.py# GET latest, history
+│       │           ├── market_data.py# GET latest, history
+│       │           └── portfolio.py  # POST/GET transactions, GET summary
 │       ├── core/
 │       │   ├── config.py            # Settings (pydantic-settings)
 │       │   ├── database.py          # SQLAlchemy engine, session, Base
 │       │   ├── deps.py              # get_current_user dependency
 │       │   └── security.py          # JWT + password hashing utilities
 │       ├── models/
-│       │   └── user.py              # User ORM model
+│       │   ├── user.py              # User ORM model
+│       │   └── portfolio.py         # PortfolioTransaction ORM model
 │       ├── schemas/
 │       │   ├── auth.py              # UserRegister, UserLogin, UserResponse, TokenResponse
-│       │   └── market_data.py       # MarketQuote, PricePoint, response wrappers
+│       │   ├── market_data.py       # MarketQuote, PricePoint, response wrappers
+│       │   └── portfolio.py         # TransactionCreate, PositionResponse, PortfolioSummaryResponse
 │       └── services/
 │           ├── auth.py              # create_user, authenticate_user, get_user_by_email
-│           └── market_data.py       # Mock quote and history generators
+│           ├── market_data.py       # Mock quote and history generators
+│           └── portfolio.py         # Position calculation, validation, P&L
 │
 └── frontend/
     ├── Dockerfile
@@ -206,7 +270,11 @@ financial-web-app/
         │   ├── layout.tsx            # Root layout (AuthProvider, fonts, metadata)
         │   ├── page.tsx              # Dashboard (protected)
         │   ├── login/page.tsx        # Login page
-        │   └── register/page.tsx     # Register page
+        │   ├── register/page.tsx     # Register page
+        │   └── portfolio/
+        │       ├── page.tsx          # Portfolio dashboard (positions, summary, chart)
+        │       └── new-transaction/
+        │           └── page.tsx      # New transaction form
         ├── components/
         │   ├── ui/
         │   │   └── button.tsx        # shadcn Button (base-ui)
@@ -222,6 +290,7 @@ financial-web-app/
             ├── api.ts                # Base API client utility
             ├── auth.ts               # Auth API functions
             ├── market-data.ts        # Market data API functions
+            ├── portfolio.ts          # Portfolio API functions
             └── utils.ts              # cn() helper (tailwind-merge + clsx)
 ```
 
@@ -273,11 +342,11 @@ This starts PostgreSQL, backend (port 8000), and frontend (port 3000).
 
 ## 7. Roadmap / Next Steps
 
-| Priority | Feature | Description |
-|---|---|---|
-| 1 | Portfolio Module | Let users add holdings, track P&L, and view allocation charts. |
-| 2 | Watchlist | Save favourite symbols and receive summary updates. |
-| 3 | Real Market Data Providers | Integrate CoinGecko, Alpha Vantage, or Yahoo Finance to replace mock data. |
-| 4 | Economic Calendar | Surface upcoming earnings, FOMC meetings, and macro data releases. |
-| 5 | Alerts System | Notify users (email / push) when a price crosses a threshold. |
-| 6 | AI Analysis Tools | Summarise trends, generate trade ideas, or score sentiment with LLMs. |
+| Priority | Feature | Status | Description |
+|---|---|---|---|
+| 1 | Portfolio Module | Done | Record transactions, view positions, P&L, and allocation chart. |
+| 2 | Watchlist | Planned | Save favourite symbols and receive summary updates. |
+| 3 | Real Market Data Providers | Planned | Integrate CoinGecko, Alpha Vantage, or Yahoo Finance to replace mock data. |
+| 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
+| 5 | Alerts System | Planned | Notify users (email / push) when a price crosses a threshold. |
+| 6 | AI Analysis Tools | Planned | Summarise trends, generate trade ideas, or score sentiment with LLMs. |
