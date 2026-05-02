@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogIn, LogOut, UserPlus } from "lucide-react";
+import { Briefcase, LogIn, LogOut, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,6 +17,12 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
+              <Link href="/portfolio">
+                <Button variant="outline" size="sm">
+                  <Briefcase className="mr-1.5 h-4 w-4" />
+                  Portfolio
+                </Button>
+              </Link>
               <span className="text-sm text-muted-foreground">{user.email}</span>
               <Button variant="outline" size="sm" onClick={logout}>
                 <LogOut className="mr-1.5 h-4 w-4" />
