@@ -6,10 +6,10 @@
 
 ## 1. Overview
 
-**AI Finance WebApp** is a modular financial web application that provides a dashboard for viewing market data, managing authentication, and (in the future) tracking portfolios.
+**AI Finance WebApp** is a modular financial web application that provides a dashboard for viewing market data, managing authentication, and tracking portfolios with real-time prices.
 
 - **Typical user:** A retail investor or finance enthusiast who wants a single dashboard to monitor prices, manage a watchlist, and analyse market trends.
-- **Current maturity:** Early MVP. The app has JWT-based authentication, mock market data for three symbols, and a portfolio module for recording transactions and tracking positions. There is no real brokerage integration or production database yet.
+- **Current maturity:** Early MVP. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, and a portfolio module for recording transactions and tracking positions with live P&L. There is no real brokerage integration or production database yet.
 
 ---
 
@@ -27,7 +27,7 @@
 | Auth | python-jose (JWT, HS256) + passlib/bcrypt |
 | Validation | Pydantic 2.11 + pydantic-settings |
 | Migrations | Alembic 1.15 (configured, not yet used) |
-| HTTP client | httpx 0.28 (available for future external API calls) |
+| HTTP client | httpx 0.28 (used for CoinGecko API calls) |
 
 ### Frontend
 
@@ -124,39 +124,54 @@ frontend/src/components/shared/navbar.tsx
 
 ---
 
-### 4.2 Market Data Module (Mock)
+### 4.2 Market Data Module (Live + Mock)
 
-**Supported symbols:** BTC (Bitcoin, base $62,450), ETH (Ethereum, base $3,180), AAPL (Apple Inc., base $189.50). Prices are generated with deterministic random jitter (`seed=42`).
+**Data sources:**
+- **Crypto (BTC, ETH):** Real-time prices from [CoinGecko](https://www.coingecko.com/en/api) public API (no API key required). Includes 24-hour price change percentage.
+- **Stocks (AAPL):** Mock data with deterministic jitter (`seed=42`). Will be replaced with a real provider in the future.
 
-**Backend endpoints** (prefix: `/api/market-data`):
+**Caching strategy:**
+- Prices are cached in-memory for 60 seconds to avoid CoinGecko rate limits.
+- On API failure, the last cached price is returned if available.
+- If no cache exists and the API is down, a 503 error is returned with a clear message.
+
+**Symbol mapping (internal → CoinGecko):** `BTC` → `bitcoin`, `ETH` → `ethereum`.
+
+**Backend endpoints:**
 
 | Method | Route | Description | Auth required |
 |---|---|---|---|
-| GET | `/api/market-data/latest` | Returns current mock quotes for all symbols (price, change, change %). | No |
+| GET | `/api/market-data/latest` | Returns current quotes for all symbols (real for crypto, mock for stocks). | No |
 | GET | `/api/market-data/history?symbol=BTC&days=30` | Returns daily mock price points for a symbol. Returns 404 for unknown symbols. `days` defaults to 30 (max 365). | No |
+| GET | `/api/market/prices?symbols=BTC,ETH` | Returns live prices for requested symbols. Response: `{"BTC": {"price": 62000, "change_24h": -0.25}, ...}` | Yes (Bearer token) |
 
 **Frontend components:**
 - `<MarketDataSection>` — orchestrates price cards and chart.
 - `<PriceCard>` — shows symbol name, price, daily change with green/red colour coding. Clicking a card selects the symbol.
 - `<PriceChart>` — 30-day line chart rendered with Recharts for the selected symbol.
+- Portfolio positions table shows a green **"Live"** badge next to current prices sourced from CoinGecko.
 
 **Key files:**
 
 ```
-backend/app/api/v1/endpoints/market_data.py   # Route handlers
-backend/app/services/market_data.py            # Mock data generation
+backend/app/api/v1/endpoints/market_data.py    # Dashboard quote/history routes
+backend/app/api/v1/endpoints/market.py         # GET /api/market/prices (auth required)
+backend/app/services/market_data_service.py    # CoinGecko integration, caching, fallback
+backend/app/services/market_data.py            # Orchestrates live + mock data for dashboard
 backend/app/schemas/market_data.py             # Pydantic models (MarketQuote, PricePoint)
 
 frontend/src/components/shared/market-data-section.tsx
 frontend/src/components/shared/price-card.tsx
 frontend/src/components/shared/price-chart.tsx
 frontend/src/lib/market-data.ts                # API client for market data
+frontend/src/lib/portfolio.ts                  # fetchMarketPrices() for live price endpoint
 ```
 
 **Future extension:**
-- Replace `backend/app/services/market_data.py` with real API calls (e.g. CoinGecko, Alpha Vantage, Yahoo Finance). The service functions have the same interface so the routes do not need to change.
+- Add real stock price providers (Alpha Vantage, Yahoo Finance) for AAPL and other equities.
 - Add WebSocket support for real-time price streaming.
-- Protect market data endpoints with `Depends(get_current_user)` if desired.
+- Replace mock price history with real historical data from CoinGecko `/coins/{id}/market_chart` endpoint.
+- Protect dashboard market data endpoints with `Depends(get_current_user)` if desired.
 
 ---
 
@@ -186,7 +201,7 @@ frontend/src/lib/market-data.ts                # API client for market data
 **Business logic (positions are calculated dynamically, no separate table):**
 - Position quantity = sum of buys − sum of sells per symbol.
 - Average buy price = weighted average of all buy transactions.
-- Current price fetched from the Market Data mock service.
+- Current price fetched from the Market Data service (live CoinGecko prices for crypto, mock for stocks).
 - Unrealized P&L = (current_price − avg_buy_price) × quantity.
 
 **Validation rules:**
@@ -195,7 +210,7 @@ frontend/src/lib/market-data.ts                # API client for market data
 - All endpoints require JWT authentication.
 
 **Frontend pages:**
-- `/portfolio` — Protected page showing summary cards (Total Value, Total Invested, P&L, Return %), positions table, portfolio allocation chart (Recharts), and transaction history table.
+- `/portfolio` — Protected page showing summary cards (Total Value, Total Invested, P&L, Return %), positions table with "Live" price badges, portfolio allocation chart (Recharts), and transaction history table. Shows a spinner during loading and a yellow warning banner if live prices are temporarily unavailable.
 - `/portfolio/new-transaction` — Form to record a new transaction with symbol selector, asset type, transaction type, quantity, and price fields. Redirects to `/portfolio` on success.
 - Navbar shows a "Portfolio" button when authenticated.
 
@@ -241,6 +256,7 @@ financial-web-app/
 │       │           ├── health.py     # GET /api/v1/health
 │       │           ├── auth.py       # POST register, login; GET me
 │       │           ├── market_data.py# GET latest, history
+│       │           ├── market.py     # GET /api/market/prices (live, auth required)
 │       │           └── portfolio.py  # POST/GET transactions, GET summary
 │       ├── core/
 │       │   ├── config.py            # Settings (pydantic-settings)
@@ -256,7 +272,8 @@ financial-web-app/
 │       │   └── portfolio.py         # TransactionCreate, PositionResponse, PortfolioSummaryResponse
 │       └── services/
 │           ├── auth.py              # create_user, authenticate_user, get_user_by_email
-│           ├── market_data.py       # Mock quote and history generators
+│           ├── market_data_service.py # CoinGecko integration, 60s cache, fallback
+│           ├── market_data.py       # Orchestrates live + mock quote/history
 │           └── portfolio.py         # Position calculation, validation, P&L
 │
 └── frontend/
@@ -346,7 +363,7 @@ This starts PostgreSQL, backend (port 8000), and frontend (port 3000).
 |---|---|---|---|
 | 1 | Portfolio Module | Done | Record transactions, view positions, P&L, and allocation chart. |
 | 2 | Watchlist | Planned | Save favourite symbols and receive summary updates. |
-| 3 | Real Market Data Providers | Planned | Integrate CoinGecko, Alpha Vantage, or Yahoo Finance to replace mock data. |
+| 3 | Real Market Data Providers | Partial | CoinGecko integrated for crypto (BTC, ETH). Stock prices (AAPL) still mock — need Alpha Vantage or Yahoo Finance. |
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
 | 5 | Alerts System | Planned | Notify users (email / push) when a price crosses a threshold. |
 | 6 | AI Analysis Tools | Planned | Summarise trends, generate trade ideas, or score sentiment with LLMs. |
