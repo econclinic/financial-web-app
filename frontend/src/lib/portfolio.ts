@@ -25,6 +25,7 @@ export interface PortfolioSummary {
   total_value: number;
   total_invested: number;
   total_pnl: number;
+  pnl_percentage: number;
   positions: PortfolioPosition[];
 }
 
@@ -61,6 +62,23 @@ export async function fetchTransactions(
   });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json() as Promise<PortfolioTransaction[]>;
+}
+
+export interface MarketPriceInfo {
+  price: number;
+  change_24h: number;
+}
+
+export async function fetchMarketPrices(
+  token: string,
+  symbols: string[] = ["BTC", "ETH"],
+): Promise<Record<string, MarketPriceInfo>> {
+  const res = await fetch(
+    `${API_BASE}/api/market/prices?symbols=${symbols.join(",")}`,
+    { headers: authHeaders(token) },
+  );
+  if (!res.ok) throw new Error(`Market data unavailable (${res.status})`);
+  return res.json() as Promise<Record<string, MarketPriceInfo>>;
 }
 
 export async function createTransaction(
