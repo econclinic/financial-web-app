@@ -347,6 +347,25 @@ docker compose up --build
 
 This starts PostgreSQL, backend (port 8000), and frontend (port 3000).
 
+### Continuous Integration (GitHub Actions)
+
+CI runs automatically on every **push to `main`** and on every **pull request targeting `main`**. The workflow is defined in `.github/workflows/ci.yml` and contains two parallel jobs:
+
+| Job | Runner | Steps |
+|---|---|---|
+| **Backend** | Python 3.11 | Install deps → `ruff check app/` (lint) → `pytest tests/ -v` (tests) |
+| **Frontend** | Node 20 | `npm ci` → `npm run lint` (ESLint) → `npm run build` (production build) |
+
+Both jobs use caching (`pip` and `npm`) to speed up repeat runs. The jobs run in parallel — the full CI pipeline typically finishes in under 2 minutes.
+
+**Viewing CI logs:**
+1. Open the Pull Request on GitHub.
+2. Scroll to the status checks section at the bottom.
+3. Click **"Details"** next to a failed or passed job to see its full log output.
+4. Alternatively, go to the repository's **Actions** tab to see all workflow runs.
+
+**Dev dependencies:** Backend linting and testing tools are in `requirements-dev.txt` (ruff, pytest). Install them locally with `pip install -r requirements-dev.txt`.
+
 ### For AI agents
 
 1. **Read `PROJECT_CONTEXT.md` first** before making any changes.
@@ -366,4 +385,5 @@ This starts PostgreSQL, backend (port 8000), and frontend (port 3000).
 | 3 | Real Market Data Providers | Partial | CoinGecko integrated for crypto (BTC, ETH). Stock prices (AAPL) still mock — need Alpha Vantage or Yahoo Finance. |
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
 | 5 | Alerts System | Planned | Notify users (email / push) when a price crosses a threshold. |
-| 6 | AI Analysis Tools | Planned | Summarise trends, generate trade ideas, or score sentiment with LLMs. |
+| 6 | CI/CD Pipeline | Done | GitHub Actions CI with parallel backend (ruff + pytest) and frontend (ESLint + build) jobs. |
+| 7 | AI Analysis Tools | Planned | Summarise trends, generate trade ideas, or score sentiment with LLMs. |

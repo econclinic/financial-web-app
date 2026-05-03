@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.models.portfolio import PortfolioTransaction
 from app.schemas.portfolio import (
-    PositionResponse,
     PortfolioSummaryResponse,
+    PositionResponse,
     TransactionCreate,
 )
 from app.services.market_data_service import get_current_prices_map
