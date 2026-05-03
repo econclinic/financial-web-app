@@ -49,4 +49,5 @@ class PortfolioSummaryResponse(BaseModel):
     total_value: float
     total_invested: float
     total_pnl: float
+    pnl_percentage: float
     positions: list[PositionResponse]

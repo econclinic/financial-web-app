@@ -7,12 +7,7 @@ from app.schemas.portfolio import (
     PortfolioSummaryResponse,
     TransactionCreate,
 )
-from app.services.market_data import get_latest_quotes
-
-
-def get_current_prices() -> dict[str, float]:
-    quotes = get_latest_quotes()
-    return {q.symbol: q.price for q in quotes}
+from app.services.market_data_service import get_current_prices_map
 
 
 def create_transaction(
@@ -77,7 +72,8 @@ def get_portfolio_summary(db: Session, user_id: int) -> PortfolioSummaryResponse
         else:
             entry["sell_quantity"] += txn.quantity
 
-    current_prices = get_current_prices()
+    symbols_in_portfolio = list(positions_map.keys())
+    current_prices = get_current_prices_map(symbols_in_portfolio)
     positions: list[PositionResponse] = []
     total_value = 0.0
     total_invested = 0.0
@@ -108,10 +104,14 @@ def get_portfolio_summary(db: Session, user_id: int) -> PortfolioSummaryResponse
         total_value += value
         total_invested += invested
 
+    total_pnl = round(total_value - total_invested, 2)
+    pnl_pct = round((total_pnl / total_invested) * 100, 2) if total_invested > 0 else 0.0
+
     return PortfolioSummaryResponse(
         total_value=round(total_value, 2),
         total_invested=round(total_invested, 2),
-        total_pnl=round(total_value - total_invested, 2),
+        total_pnl=total_pnl,
+        pnl_percentage=pnl_pct,
         positions=positions,
     )
 

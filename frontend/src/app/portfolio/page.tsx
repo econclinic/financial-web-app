@@ -6,7 +6,9 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   DollarSign,
+  Loader2,
   Plus,
+  Radio,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -24,36 +26,50 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/shared/navbar";
 import { ProtectedRoute } from "@/components/shared/protected-route";
 import { useAuth } from "@/hooks/use-auth";
-import type { PortfolioSummary, PortfolioTransaction } from "@/lib/portfolio";
-import { fetchPortfolioSummary, fetchTransactions } from "@/lib/portfolio";
+import type { MarketPriceInfo, PortfolioSummary, PortfolioTransaction } from "@/lib/portfolio";
+import { fetchMarketPrices, fetchPortfolioSummary, fetchTransactions } from "@/lib/portfolio";
 
 export default function PortfolioPage() {
   const { token } = useAuth();
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [transactions, setTransactions] = useState<PortfolioTransaction[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, MarketPriceInfo> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [priceError, setPriceError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
 
-    Promise.all([fetchPortfolioSummary(token), fetchTransactions(token)])
-      .then(([s, t]) => {
+    async function loadData() {
+      try {
+        const [s, t] = await Promise.all([
+          fetchPortfolioSummary(token!),
+          fetchTransactions(token!),
+        ]);
         if (cancelled) return;
         setSummary(s);
         setTransactions(t);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to load portfolio");
-        setLoading(false);
-      });
+      }
 
-    return () => {
-      cancelled = true;
-    };
+      try {
+        const prices = await fetchMarketPrices(token!, ["BTC", "ETH"]);
+        if (cancelled) return;
+        setLivePrices(prices);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setPriceError(err instanceof Error ? err.message : "Live prices unavailable");
+      }
+
+      if (!cancelled) setLoading(false);
+    }
+
+    loadData();
+    return () => { cancelled = true; };
   }, [token]);
 
   return (
@@ -72,7 +88,10 @@ export default function PortfolioPage() {
           </div>
 
           {loading && (
-            <p className="mt-8 text-muted-foreground">Loading portfolio...</p>
+            <div className="mt-8 flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading portfolio...
+            </div>
           )}
 
           {error && (
@@ -81,12 +100,18 @@ export default function PortfolioPage() {
             </div>
           )}
 
+          {priceError && (
+            <div className="mt-4 rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+              {priceError} — showing last cached prices.
+            </div>
+          )}
+
           {!loading && !error && summary && (
             <>
               <SummaryCards summary={summary} />
               {summary.positions.length > 0 && (
                 <>
-                  <PositionsTable summary={summary} />
+                  <PositionsTable summary={summary} livePrices={livePrices} />
                   <PortfolioChart summary={summary} />
                 </>
               )}
@@ -110,10 +135,7 @@ export default function PortfolioPage() {
 
 function SummaryCards({ summary }: { summary: PortfolioSummary }) {
   const pnlPositive = summary.total_pnl >= 0;
-  const pnlPercent =
-    summary.total_invested > 0
-      ? ((summary.total_pnl / summary.total_invested) * 100).toFixed(2)
-      : "0.00";
+  const pnlPercent = summary.pnl_percentage.toFixed(2);
 
   const cards = [
     {
@@ -157,7 +179,13 @@ function SummaryCards({ summary }: { summary: PortfolioSummary }) {
   );
 }
 
-function PositionsTable({ summary }: { summary: PortfolioSummary }) {
+function PositionsTable({
+  summary,
+  livePrices,
+}: {
+  summary: PortfolioSummary;
+  livePrices: Record<string, MarketPriceInfo> | null;
+}) {
   return (
     <div className="mt-8">
       <h3 className="mb-4 text-lg font-semibold">Positions</h3>
@@ -178,6 +206,7 @@ function PositionsTable({ summary }: { summary: PortfolioSummary }) {
             {summary.positions.map((pos) => {
               const pnlColor =
                 pos.unrealized_pnl >= 0 ? "text-green-600" : "text-red-600";
+              const isLive = livePrices !== null && pos.symbol in livePrices;
               return (
                 <tr key={pos.symbol} className="border-b last:border-0">
                   <td className="px-4 py-3 font-medium">{pos.symbol}</td>
@@ -193,7 +222,15 @@ function PositionsTable({ summary }: { summary: PortfolioSummary }) {
                     ${pos.average_buy_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    ${pos.current_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    <span className="inline-flex items-center gap-1.5">
+                      ${pos.current_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {isLive && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
+                          <Radio className="h-2.5 w-2.5" />
+                          Live
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right font-medium">
                     ${pos.total_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
