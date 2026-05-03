@@ -16,7 +16,6 @@ COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
 SYMBOL_TO_COINGECKO: dict[str, str] = {
     "BTC": "bitcoin",
     "ETH": "ethereum",
-    "AAPL": "apple",
 }
 
 COINGECKO_TO_SYMBOL: dict[str, str] = {v: k for k, v in SYMBOL_TO_COINGECKO.items()}
