@@ -10,7 +10,7 @@ import random
 from datetime import datetime, timedelta, timezone
 
 from app.schemas.market_data import MarketQuote, PricePoint
-from app.services.market_data_service import get_live_prices, SYMBOL_TO_COINGECKO
+from app.services.market_data_service import SYMBOL_TO_COINGECKO, get_live_prices
 
 _SYMBOLS: dict[str, dict[str, float | str]] = {
     "BTC": {"name": "Bitcoin", "base_price": 62_450.00},
