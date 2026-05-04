@@ -235,6 +235,65 @@ frontend/src/lib/portfolio.ts                         # API client for portfolio
 
 ---
 
+### 4.4 Watchlist Module
+
+**Backend endpoints** (prefix: `/api/watchlist`):
+
+| Method | Route | Description | Auth required |
+|---|---|---|---|
+| GET | `/api/watchlist` | Return the current user's watchlist items (newest first). | Yes (Bearer token) |
+| POST | `/api/watchlist` | Add a symbol to the user's watchlist. Normalises to uppercase. Returns 409 if the symbol is already in the watchlist. | Yes (Bearer token) |
+| DELETE | `/api/watchlist/{symbol}` | Remove a symbol from the user's watchlist. Returns 404 if not found. | Yes (Bearer token) |
+
+**Database model — `WatchlistItem`:**
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | Integer PK | Auto-increment |
+| `user_id` | Integer | FK to User (logical, not enforced at DB level for SQLite compatibility) |
+| `symbol` | String | Stored as uppercase |
+| `created_at` | DateTime (UTC) | Defaults to now |
+
+**Constraints:** Unique index on `(user_id, symbol)` — each user can only add a symbol once.
+
+**Business logic:**
+- Symbols are normalised to uppercase before storage and comparison.
+- Duplicate detection is handled by the database unique constraint; the service catches `IntegrityError` and the endpoint returns HTTP 409.
+- Users can only see and modify their own watchlist (user isolation enforced in all queries).
+
+**Frontend page:**
+- `/watchlist` — Protected page showing the user's watchlist in a table with columns: Symbol, Current Price (fetched via existing market data service), 24h Change, and a Remove button. Includes an input + Add button at the top for adding new symbols. Shows loading spinner, error banner, and an empty state with guidance.
+- Navbar shows a "Watchlist" button (with eye icon) when authenticated.
+
+**Key files:**
+
+```
+backend/app/api/v1/endpoints/watchlist.py   # Route handlers (GET, POST, DELETE)
+backend/app/models/watchlist.py             # WatchlistItem ORM model
+backend/app/schemas/watchlist.py            # WatchlistAdd, WatchlistResponse
+backend/app/services/watchlist.py           # get_user_watchlist, add_symbol, remove_symbol
+backend/tests/test_watchlist.py             # pytest tests (7 tests)
+
+frontend/src/app/watchlist/page.tsx         # Watchlist page
+frontend/src/lib/watchlist.ts               # API client (fetchWatchlist, addToWatchlist, removeFromWatchlist)
+```
+
+**Test coverage (pytest):**
+- Retrieve empty watchlist
+- Add symbol (normalised to uppercase)
+- Prevent duplicate symbols (HTTP 409)
+- Delete symbol
+- Delete missing symbol (HTTP 404)
+- Reject unauthenticated requests (HTTP 403)
+- User isolation (user A cannot see or delete user B's symbols)
+
+**Extending the watchlist module:**
+- Add notes or tags per watchlist entry.
+- Add price alert thresholds per symbol.
+- Add a "quick add to portfolio" flow from the watchlist.
+
+---
+
 ## 5. Repository Structure
 
 ```
@@ -257,7 +316,8 @@ financial-web-app/
 │       │           ├── auth.py       # POST register, login; GET me
 │       │           ├── market_data.py# GET latest, history
 │       │           ├── market.py     # GET /api/market/prices (live, auth required)
-│       │           └── portfolio.py  # POST/GET transactions, GET summary
+│       │           ├── portfolio.py  # POST/GET transactions, GET summary
+│       │           └── watchlist.py  # GET/POST/DELETE watchlist
 │       ├── core/
 │       │   ├── config.py            # Settings (pydantic-settings)
 │       │   ├── database.py          # SQLAlchemy engine, session, Base
@@ -265,16 +325,19 @@ financial-web-app/
 │       │   └── security.py          # JWT + password hashing utilities
 │       ├── models/
 │       │   ├── user.py              # User ORM model
-│       │   └── portfolio.py         # PortfolioTransaction ORM model
+│       │   ├── portfolio.py         # PortfolioTransaction ORM model
+│       │   └── watchlist.py         # WatchlistItem ORM model
 │       ├── schemas/
 │       │   ├── auth.py              # UserRegister, UserLogin, UserResponse, TokenResponse
 │       │   ├── market_data.py       # MarketQuote, PricePoint, response wrappers
-│       │   └── portfolio.py         # TransactionCreate, PositionResponse, PortfolioSummaryResponse
+│       │   ├── portfolio.py         # TransactionCreate, PositionResponse, PortfolioSummaryResponse
+│       │   └── watchlist.py         # WatchlistAdd, WatchlistResponse
 │       └── services/
 │           ├── auth.py              # create_user, authenticate_user, get_user_by_email
 │           ├── market_data_service.py # CoinGecko integration, 60s cache, fallback
 │           ├── market_data.py       # Orchestrates live + mock quote/history
-│           └── portfolio.py         # Position calculation, validation, P&L
+│           ├── portfolio.py         # Position calculation, validation, P&L
+│           └── watchlist.py         # Watchlist CRUD operations
 │
 └── frontend/
     ├── Dockerfile
@@ -288,10 +351,12 @@ financial-web-app/
         │   ├── page.tsx              # Dashboard (protected)
         │   ├── login/page.tsx        # Login page
         │   ├── register/page.tsx     # Register page
-        │   └── portfolio/
-        │       ├── page.tsx          # Portfolio dashboard (positions, summary, chart)
-        │       └── new-transaction/
-        │           └── page.tsx      # New transaction form
+        │   ├── portfolio/
+        │   │   ├── page.tsx          # Portfolio dashboard (positions, summary, chart)
+        │   │   └── new-transaction/
+        │   │       └── page.tsx      # New transaction form
+        │   └── watchlist/
+        │       └── page.tsx          # Watchlist page
         ├── components/
         │   ├── ui/
         │   │   └── button.tsx        # shadcn Button (base-ui)
@@ -308,6 +373,7 @@ financial-web-app/
             ├── auth.ts               # Auth API functions
             ├── market-data.ts        # Market data API functions
             ├── portfolio.ts          # Portfolio API functions
+            ├── watchlist.ts          # Watchlist API functions
             └── utils.ts              # cn() helper (tailwind-merge + clsx)
 ```
 
@@ -381,7 +447,7 @@ Both jobs use caching (`pip` and `npm`) to speed up repeat runs. The jobs run in
 | Priority | Feature | Status | Description |
 |---|---|---|---|
 | 1 | Portfolio Module | Done | Record transactions, view positions, P&L, and allocation chart. |
-| 2 | Watchlist | Planned | Save favourite symbols and receive summary updates. |
+| 2 | Watchlist | Done | Track favourite symbols with live prices. Add/remove symbols, duplicate prevention, user isolation. |
 | 3 | Real Market Data Providers | Partial | CoinGecko integrated for crypto (BTC, ETH). Stock prices (AAPL) still mock — need Alpha Vantage or Yahoo Finance. |
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
 | 5 | Alerts System | Planned | Notify users (email / push) when a price crosses a threshold. |
