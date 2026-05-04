@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, LogIn, LogOut, UserPlus } from "lucide-react";
+import { Briefcase, Eye, LogIn, LogOut, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,6 +21,12 @@ export function Navbar() {
                 <Button variant="outline" size="sm">
                   <Briefcase className="mr-1.5 h-4 w-4" />
                   Portfolio
+                </Button>
+              </Link>
+              <Link href="/watchlist">
+                <Button variant="outline" size="sm">
+                  <Eye className="mr-1.5 h-4 w-4" />
+                  Watchlist
                 </Button>
               </Link>
               <span className="text-sm text-muted-foreground">{user.email}</span>
