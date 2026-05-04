@@ -72,5 +72,16 @@ npm run dev
 | Frontend   | Next.js 16, React 19, Tailwind CSS v4  |
 | UI Library | Shadcn UI, Lucide React                |
 | Backend    | FastAPI, SQLAlchemy, Pydantic          |
-| Database   | PostgreSQL 16                          |
+| Database   | SQLite (MVP) / PostgreSQL 16 (prod)    |
 | Infra      | Docker Compose                         |
+
+## Features
+
+- **Authentication** — JWT-based register/login with protected routes
+- **Market Data** — Real-time crypto prices (CoinGecko) with 60s caching, mock stocks
+- **Portfolio** — Record buy/sell transactions, track positions with live P&L
+- **Watchlist** — Track favourite symbols with live prices and 24h change
+- **Price Alerts** — Set above/below price thresholds; background worker checks every 60s and triggers once when condition is met
+- **CI/CD** — GitHub Actions with parallel backend (ruff + pytest) and frontend (ESLint + build) jobs
+
+See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for detailed architecture and module documentation.
