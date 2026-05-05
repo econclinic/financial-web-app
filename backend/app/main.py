@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.endpoints import alerts, auth, market, market_data, portfolio, watchlist
+from app.api.v1.endpoints import alerts, auth, market, market_data, notifications, portfolio, watchlist
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
@@ -41,3 +41,4 @@ app.include_router(portfolio.router, prefix="/api/portfolio", tags=["portfolio"]
 app.include_router(market.router, prefix="/api/market", tags=["market"])
 app.include_router(watchlist.router, prefix="/api/watchlist", tags=["watchlist"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])

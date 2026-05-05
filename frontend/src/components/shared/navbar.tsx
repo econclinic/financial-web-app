@@ -1,13 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Briefcase, Eye, LogIn, LogOut, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, BellRing, Briefcase, Eye, LogIn, LogOut, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { fetchUnreadCount } from "@/lib/notifications";
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const count = await fetchUnreadCount(token!);
+        if (!cancelled) setUnreadCount(count);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    poll();
+    const interval = setInterval(poll, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [token]);
 
   return (
     <header className="border-b">
@@ -33,6 +57,21 @@ export function Navbar() {
                 <Button variant="outline" size="sm">
                   <Bell className="mr-1.5 h-4 w-4" />
                   Alerts
+                </Button>
+              </Link>
+              <Link href="/notifications">
+                <Button variant="outline" size="sm" className="relative">
+                  {unreadCount > 0 ? (
+                    <BellRing className="mr-1.5 h-4 w-4" />
+                  ) : (
+                    <Bell className="mr-1.5 h-4 w-4" />
+                  )}
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </Button>
               </Link>
               <span className="text-sm text-muted-foreground">{user.email}</span>
