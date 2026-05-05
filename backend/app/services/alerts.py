@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.alert import Alert
+from app.models.notification import Notification
 
 
 def get_user_alerts(db: Session, user_id: int) -> list[Alert]:
@@ -59,6 +60,7 @@ def evaluate_alerts(db: Session, prices: dict[str, float]) -> int:
     """
     active = db.query(Alert).filter(Alert.is_triggered.is_(False)).all()
     triggered_count = 0
+    new_notifications: list[Notification] = []
 
     for alert in active:
         price = prices.get(alert.symbol)
@@ -75,7 +77,29 @@ def evaluate_alerts(db: Session, prices: dict[str, float]) -> int:
             alert.triggered_at = datetime.now(timezone.utc)
             triggered_count += 1
 
+            verb = "crossed above" if alert.direction == "above" else "dropped below"
+            existing = (
+                db.query(Notification)
+                .filter(
+                    Notification.related_alert_id == alert.id,
+                    Notification.type == "price_alert_triggered",
+                )
+                .first()
+            )
+            if existing is None:
+                new_notifications.append(
+                    Notification(
+                        user_id=alert.user_id,
+                        type="price_alert_triggered",
+                        title="Alert Triggered",
+                        message=f"{alert.symbol} {verb} {alert.target_price:g}",
+                        related_alert_id=alert.id,
+                    )
+                )
+
     if triggered_count > 0:
+        for n in new_notifications:
+            db.add(n)
         db.commit()
 
     return triggered_count

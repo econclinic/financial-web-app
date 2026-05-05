@@ -82,6 +82,7 @@ npm run dev
 - **Portfolio** — Record buy/sell transactions, track positions with live P&L
 - **Watchlist** — Track favourite symbols with live prices and 24h change
 - **Price Alerts** — Set above/below price thresholds; background worker checks every 60s and triggers once when condition is met
+- **Notifications** — In-app notification system; auto-created when price alerts trigger, with read/unread state and navbar badge
 - **CI/CD** — GitHub Actions with parallel backend (ruff + pytest) and frontend (ESLint + build) jobs
 
 See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for detailed architecture and module documentation.

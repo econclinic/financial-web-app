@@ -367,7 +367,76 @@ frontend/src/lib/alerts.ts               # API client (fetchAlerts, createAlert,
 **Extending the alerts module:**
 - Add email or push notification channels when alerts fire.
 - Add recurring alerts (re-arm after trigger).
-- Add a notification inbox in the frontend to show triggered alerts.
+
+---
+
+### 4.6 Notifications System (MVP)
+
+**Overview:**
+In-app notification system triggered by the Price Alerts module. When a price alert triggers, a notification is automatically created for the user. Users can view, mark as read (single or all), and see an unread badge in the navbar.
+
+**Backend endpoints** (prefix: `/api/notifications`):
+
+| Method | Route | Description | Auth required |
+|---|---|---|---|
+| GET | `/api/notifications` | Return user notifications, newest first. Supports `limit` and `offset` query params. | Yes (Bearer token) |
+| GET | `/api/notifications/unread-count` | Return `{ unread_count: N }` for navbar badge. | Yes (Bearer token) |
+| POST | `/api/notifications/{id}/read` | Mark a single notification as read. Returns 404 if not found or not owned. | Yes (Bearer token) |
+| POST | `/api/notifications/read-all` | Mark all unread notifications as read for the current user. | Yes (Bearer token) |
+
+**Database model — `Notification`:**
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | Integer PK | Auto-increment |
+| `user_id` | Integer | FK to `users.id` |
+| `type` | String | e.g. `"price_alert_triggered"` |
+| `title` | String | e.g. `"Alert Triggered"` |
+| `message` | String | e.g. `"BTC crossed above 70000"` |
+| `is_read` | Boolean | Defaults to `false` |
+| `related_alert_id` | Integer (nullable) | FK to `alerts.id` |
+| `created_at` | DateTime (UTC) | Defaults to now |
+
+**Integration with Price Alerts:**
+- When the background worker triggers an alert, exactly one notification is created.
+- Duplicate prevention: checks if a notification with `related_alert_id` and `type="price_alert_triggered"` already exists before creating.
+- Message format: `"{SYMBOL} crossed above {price}"` or `"{SYMBOL} dropped below {price}"`.
+
+**Frontend:**
+- `/notifications` — Protected page listing notifications with read/unread visual distinction, "Mark as read" per item, and "Mark all as read" button.
+- Navbar shows a "Notifications" button with a red unread count badge (polls every 30s). Uses `BellRing` icon when unread > 0.
+
+**Key files:**
+
+```
+backend/app/api/v1/endpoints/notifications.py  # Route handlers
+backend/app/models/notification.py             # Notification ORM model
+backend/app/schemas/notification.py            # NotificationResponse, UnreadCountResponse
+backend/app/services/notifications.py          # CRUD + unread count
+backend/tests/test_notifications.py            # pytest tests (12 tests)
+
+frontend/src/app/notifications/page.tsx        # Notifications page
+frontend/src/lib/notifications.ts              # API client
+```
+
+**Test coverage (pytest):**
+- Retrieve empty notifications list
+- Create and list notifications (ordering)
+- Pagination (limit/offset)
+- Mark single notification as read
+- Mark nonexistent notification (HTTP 404)
+- Mark all as read
+- Unread count accuracy
+- User isolation (no cross-user access)
+- Reject unauthenticated requests (HTTP 403)
+- Notification created on alert trigger (above)
+- Notification created on alert trigger (below)
+- No duplicate notification on repeated triggers
+
+**Future extensions:**
+- Email or push notification channels.
+- Notification preferences (opt-in/out per type).
+- Real-time delivery via WebSocket.
 
 ---
 
@@ -535,6 +604,7 @@ Both jobs use caching (`pip` and `npm`) to speed up repeat runs. The jobs run in
 | 2 | Watchlist | Done | Track favourite symbols with live prices. Add/remove symbols, duplicate prevention, user isolation. |
 | 3 | Real Market Data Providers | Partial | CoinGecko integrated for crypto (BTC, ETH). Stock prices (AAPL) still mock — need Alpha Vantage or Yahoo Finance. |
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
-| 5 | Price Alerts | Done | Simple one-time trigger alerts with background worker (60s). No notifications yet — triggered state visible in UI. |
+| 5 | Price Alerts | Done | Simple one-time trigger alerts with background worker (60s). Triggered state visible in UI. |
+| 5b | Notifications (MVP) | Done | In-app notifications triggered by price alerts. Read/unread state, navbar badge, dedicated page. |
 | 6 | CI/CD Pipeline | Done | GitHub Actions CI with parallel backend (ruff + pytest) and frontend (ESLint + build) jobs. |
 | 7 | AI Analysis Tools | Planned | Summarise trends, generate trade ideas, or score sentiment with LLMs. |
