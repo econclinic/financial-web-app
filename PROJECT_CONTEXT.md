@@ -9,7 +9,7 @@
 **AI Finance WebApp** is a modular financial web application that provides a dashboard for viewing market data, managing authentication, and tracking portfolios with real-time prices.
 
 - **Typical user:** A retail investor or finance enthusiast who wants a single dashboard to monitor prices, manage a watchlist, and analyse market trends.
-- **Current maturity:** Early MVP. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, and a portfolio module for recording transactions and tracking positions with live P&L. There is no real brokerage integration or production database yet.
+- **Current maturity:** Early MVP. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, a portfolio module for recording transactions and tracking positions with live P&L, a watchlist, and price alerts with a background trigger worker. There is no real brokerage integration or production database yet.
 
 ---
 
@@ -289,8 +289,85 @@ frontend/src/lib/watchlist.ts               # API client (fetchWatchlist, addToW
 
 **Extending the watchlist module:**
 - Add notes or tags per watchlist entry.
-- Add price alert thresholds per symbol.
 - Add a "quick add to portfolio" flow from the watchlist.
+
+---
+
+### 4.5 Price Alerts Module
+
+**Backend endpoints** (prefix: `/api/alerts`):
+
+| Method | Route | Description | Auth required |
+|---|---|---|---|
+| GET | `/api/alerts` | Return the current user's alerts (newest first). | Yes (Bearer token) |
+| POST | `/api/alerts` | Create a new price alert. Normalises symbol to uppercase. Returns 409 if an identical active alert already exists. | Yes (Bearer token) |
+| DELETE | `/api/alerts/{id}` | Delete a specific alert belonging to the current user. Returns 404 if not found. | Yes (Bearer token) |
+
+**Database model — `Alert`:**
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | Integer PK | Auto-increment |
+| `user_id` | Integer | FK to User (logical) |
+| `symbol` | String | Stored as uppercase |
+| `target_price` | Float | Must be > 0 |
+| `direction` | String | `"above"` or `"below"` |
+| `is_triggered` | Boolean | Defaults to `false` |
+| `created_at` | DateTime (UTC) | Defaults to now |
+| `triggered_at` | DateTime (UTC) | Nullable; set when alert fires |
+
+**Constraints:** Unique index on `(user_id, symbol, direction, target_price, is_triggered)` — prevents duplicate active alerts with the same parameters.
+
+**Business logic:**
+- Symbols are normalised to uppercase before storage.
+- Duplicate active-alert detection is handled by the database unique constraint; the service catches `IntegrityError` and the endpoint returns HTTP 409.
+- Users can only see and modify their own alerts (user isolation enforced in all queries).
+
+**Background worker:**
+- An asyncio background task runs every 60 seconds.
+- Fetches live prices from the existing Market Data service (CoinGecko for crypto, mock for stocks).
+- Evaluates all active (`is_triggered=false`) alerts:
+  - `direction="above"`: triggers if current price ≥ target price.
+  - `direction="below"`: triggers if current price ≤ target price.
+- Once triggered, `is_triggered` is set to `true` and `triggered_at` is recorded. The alert does not fire again.
+- Designed to be extensible — add new periodic tasks to `_run_tasks()` in `background.py`.
+
+**Frontend page:**
+- `/alerts` — Protected page showing alerts in a table with columns: Symbol, Condition (Above/Below $X), Status (Active/Triggered badge), Triggered At timestamp, and a Delete button. Triggered rows are highlighted with a green background.
+- Form with symbol selector (BTC, ETH, AAPL), direction selector (Above/Below), target price input, and "Create Alert" button.
+- Navbar shows an "Alerts" button (with bell icon) when authenticated.
+
+**Key files:**
+
+```
+backend/app/api/v1/endpoints/alerts.py    # Route handlers (GET, POST, DELETE)
+backend/app/models/alert.py              # Alert ORM model
+backend/app/schemas/alert.py             # AlertCreate, AlertResponse
+backend/app/services/alerts.py           # CRUD + evaluate_alerts trigger logic
+backend/app/services/background.py       # Async background worker (60s interval)
+backend/tests/test_alerts.py             # pytest tests (11 tests)
+
+frontend/src/app/alerts/page.tsx         # Alerts page
+frontend/src/lib/alerts.ts               # API client (fetchAlerts, createAlert, deleteAlert)
+```
+
+**Test coverage (pytest):**
+- Retrieve empty alerts list
+- Create alert (normalised to uppercase)
+- Prevent duplicate active alerts (HTTP 409)
+- Delete alert
+- Delete nonexistent alert (HTTP 404)
+- Reject unauthenticated requests (HTTP 403)
+- User isolation (user A cannot delete user B's alerts)
+- Trigger logic — above direction (fires when price ≥ target)
+- Trigger logic — below direction (fires when price ≤ target)
+- No trigger when condition not met
+- Triggered alert does not fire again
+
+**Extending the alerts module:**
+- Add email or push notification channels when alerts fire.
+- Add recurring alerts (re-arm after trigger).
+- Add a notification inbox in the frontend to show triggered alerts.
 
 ---
 
@@ -317,7 +394,8 @@ financial-web-app/
 │       │           ├── market_data.py# GET latest, history
 │       │           ├── market.py     # GET /api/market/prices (live, auth required)
 │       │           ├── portfolio.py  # POST/GET transactions, GET summary
-│       │           └── watchlist.py  # GET/POST/DELETE watchlist
+│       │           ├── watchlist.py  # GET/POST/DELETE watchlist
+│       │           └── alerts.py    # GET/POST/DELETE alerts
 │       ├── core/
 │       │   ├── config.py            # Settings (pydantic-settings)
 │       │   ├── database.py          # SQLAlchemy engine, session, Base
@@ -326,18 +404,22 @@ financial-web-app/
 │       ├── models/
 │       │   ├── user.py              # User ORM model
 │       │   ├── portfolio.py         # PortfolioTransaction ORM model
-│       │   └── watchlist.py         # WatchlistItem ORM model
+│       │   ├── watchlist.py         # WatchlistItem ORM model
+│       │   └── alert.py            # Alert ORM model
 │       ├── schemas/
 │       │   ├── auth.py              # UserRegister, UserLogin, UserResponse, TokenResponse
 │       │   ├── market_data.py       # MarketQuote, PricePoint, response wrappers
 │       │   ├── portfolio.py         # TransactionCreate, PositionResponse, PortfolioSummaryResponse
-│       │   └── watchlist.py         # WatchlistAdd, WatchlistResponse
+│       │   ├── watchlist.py         # WatchlistAdd, WatchlistResponse
+│       │   └── alert.py            # AlertCreate, AlertResponse
 │       └── services/
 │           ├── auth.py              # create_user, authenticate_user, get_user_by_email
 │           ├── market_data_service.py # CoinGecko integration, 60s cache, fallback
 │           ├── market_data.py       # Orchestrates live + mock quote/history
 │           ├── portfolio.py         # Position calculation, validation, P&L
-│           └── watchlist.py         # Watchlist CRUD operations
+│           ├── watchlist.py         # Watchlist CRUD operations
+│           ├── alerts.py           # Alert CRUD + trigger evaluation
+│           └── background.py       # Async background worker (60s alert checker)
 │
 └── frontend/
     ├── Dockerfile
@@ -355,8 +437,10 @@ financial-web-app/
         │   │   ├── page.tsx          # Portfolio dashboard (positions, summary, chart)
         │   │   └── new-transaction/
         │   │       └── page.tsx      # New transaction form
-        │   └── watchlist/
-        │       └── page.tsx          # Watchlist page
+        │   ├── watchlist/
+        │   │   └── page.tsx          # Watchlist page
+        │   └── alerts/
+        │       └── page.tsx          # Price alerts page
         ├── components/
         │   ├── ui/
         │   │   └── button.tsx        # shadcn Button (base-ui)
@@ -374,6 +458,7 @@ financial-web-app/
             ├── market-data.ts        # Market data API functions
             ├── portfolio.ts          # Portfolio API functions
             ├── watchlist.ts          # Watchlist API functions
+            ├── alerts.ts            # Alerts API functions
             └── utils.ts              # cn() helper (tailwind-merge + clsx)
 ```
 
@@ -450,6 +535,6 @@ Both jobs use caching (`pip` and `npm`) to speed up repeat runs. The jobs run in
 | 2 | Watchlist | Done | Track favourite symbols with live prices. Add/remove symbols, duplicate prevention, user isolation. |
 | 3 | Real Market Data Providers | Partial | CoinGecko integrated for crypto (BTC, ETH). Stock prices (AAPL) still mock — need Alpha Vantage or Yahoo Finance. |
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
-| 5 | Alerts System | Planned | Notify users (email / push) when a price crosses a threshold. |
+| 5 | Price Alerts | Done | Simple one-time trigger alerts with background worker (60s). No notifications yet — triggered state visible in UI. |
 | 6 | CI/CD Pipeline | Done | GitHub Actions CI with parallel backend (ruff + pytest) and frontend (ESLint + build) jobs. |
 | 7 | AI Analysis Tools | Planned | Summarise trends, generate trade ideas, or score sentiment with LLMs. |

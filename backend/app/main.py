@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.endpoints import auth, market, market_data, portfolio, watchlist
+from app.api.v1.endpoints import alerts, auth, market, market_data, portfolio, watchlist
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
@@ -12,7 +12,11 @@ from app.core.database import Base, engine
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     Base.metadata.create_all(bind=engine)
+    from app.services.background import start_background_worker
+
+    task = await start_background_worker()
     yield
+    task.cancel()
 
 
 app = FastAPI(
@@ -36,3 +40,4 @@ app.include_router(market_data.router, prefix="/api/market-data", tags=["market-
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["portfolio"])
 app.include_router(market.router, prefix="/api/market", tags=["market"])
 app.include_router(watchlist.router, prefix="/api/watchlist", tags=["watchlist"])
+app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
