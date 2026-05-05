@@ -23,7 +23,7 @@ class Alert(Base):
     symbol = Column(String, nullable=False)
     target_price = Column(Float, nullable=False)
     direction = Column(String, nullable=False)  # "above" or "below"
-    is_triggered = Column(Boolean, nullable=False, default=False)
+    is_triggered = Column(Boolean, nullable=False, default=False, index=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
