@@ -567,6 +567,54 @@ docker compose up --build
 
 This starts PostgreSQL, backend (port 8000), and frontend (port 3000).
 
+### 4.7 Portfolio Analytics Module
+
+**Overview:**
+The Portfolio Analytics module extends the existing Portfolio module by computing on-demand performance insights, allocation breakdowns, and historical value timeseries. No new database tables are created — all analytics are derived from existing portfolio transactions and current market prices.
+
+**Backend endpoints** (prefix: `/api/analytics`):
+
+| Method | Route | Description | Auth required |
+|---|---|---|---|
+| GET | `/api/analytics/portfolio/overview` | Returns total_value, total_cost_basis, total_pnl, today_change_value, today_change_percent, top_gainers, top_losers, allocation_by_asset_type, allocation_by_symbol | Yes |
+| GET | `/api/analytics/portfolio/allocation` | Returns allocation_by_asset_type and allocation_by_symbol (suitable for pie charts) | Yes |
+| GET | `/api/analytics/portfolio/history?range=1m\|3m\|6m\|1y\|all` | Returns timestamp/value timeseries for portfolio history | Yes |
+
+**Calculation logic (`portfolio_analytics_service.py`):**
+- `calculate_portfolio_overview()` — aggregates positions, fetches current prices and 24h quotes, computes total value, cost basis, P&L, today's change, allocation percentages, and ranks gainers/losers
+- `calculate_allocation()` — returns allocation breakdowns (delegates to overview)
+- `build_time_series_history()` — builds daily portfolio value timeseries using historical price data from the market data provider, multiplied by held quantities
+
+**Formulas:**
+- **Total Value:** Σ (net_quantity × current_price) for each held symbol
+- **Cost Basis:** Σ (net_quantity × average_buy_price) — average buy price = total_buy_cost / total_buy_quantity
+- **P&L:** total_value − total_cost_basis
+- **Today's Change:** Σ (position_value × change_percent_24h / 100)
+- **Allocation %:** position_value / total_value × 100
+
+**Caching:**
+Heavy computations are cached in-memory per user with a 5-minute TTL. Cache is keyed by `user_id` and stores the full overview result.
+
+**Frontend page:** `/dashboard/analytics`
+- **Overview Cards:** Total Value, Today's Change, Total P&L, Cost Basis
+- **Allocation Pie Charts:** Two donut charts — by asset class and by symbol (Recharts)
+- **Performance Line Chart:** Selectable timeframe (1M, 3M, 6M, 1Y, ALL) showing daily portfolio value
+- **Top Movers:** Top 5 gainers and losers with color-coded P&L percentages
+
+**Key files:**
+
+```
+backend/app/services/portfolio_analytics.py    # Analytics calculations + caching
+backend/app/api/v1/endpoints/analytics.py      # API route handlers
+backend/app/schemas/analytics.py               # Pydantic response models
+backend/tests/test_analytics.py                # 11 pytest tests
+
+frontend/src/lib/analytics.ts                  # API client
+frontend/src/app/dashboard/analytics/page.tsx  # Analytics dashboard page
+```
+
+---
+
 ### Continuous Integration (GitHub Actions)
 
 CI runs automatically on every **push to `main`** and on every **pull request targeting `main`**. The workflow is defined in `.github/workflows/ci.yml` and contains two parallel jobs:
@@ -606,5 +654,6 @@ Both jobs use caching (`pip` and `npm`) to speed up repeat runs. The jobs run in
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
 | 5 | Price Alerts | Done | Simple one-time trigger alerts with background worker (60s). Triggered state visible in UI. |
 | 5b | Notifications (MVP) | Done | In-app notifications triggered by price alerts. Read/unread state, navbar badge, dedicated page. |
+| 5c | Portfolio Analytics (MVP) | Done | Performance dashboard with overview cards, allocation pie charts, historical line chart, top movers. 5-min in-memory caching. |
 | 6 | CI/CD Pipeline | Done | GitHub Actions CI with parallel backend (ruff + pytest) and frontend (ESLint + build) jobs. |
 | 7 | AI Analysis Tools | Planned | Summarise trends, generate trade ideas, or score sentiment with LLMs. |
