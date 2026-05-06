@@ -83,6 +83,7 @@ npm run dev
 - **Watchlist** — Track favourite symbols with live prices and 24h change
 - **Price Alerts** — Set above/below price thresholds; background worker checks every 60s and triggers once when condition is met
 - **Notifications** — In-app notification system; auto-created when price alerts trigger, with read/unread state and navbar badge
+- **Portfolio Analytics** — Performance dashboard with overview cards (total value, P&L, today's change), allocation pie charts (by asset class and symbol), historical performance line chart with selectable timeframes, and top movers (gainers/losers)
 - **CI/CD** — GitHub Actions with parallel backend (ruff + pytest) and frontend (ESLint + build) jobs
 
 See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for detailed architecture and module documentation.

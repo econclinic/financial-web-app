@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Bell, BellRing, Briefcase, Eye, LogIn, LogOut, UserPlus } from "lucide-react";
+import { BarChart3, Bell, BellRing, Briefcase, Eye, LogIn, LogOut, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -45,6 +45,12 @@ export function Navbar() {
                 <Button variant="outline" size="sm">
                   <Briefcase className="mr-1.5 h-4 w-4" />
                   Portfolio
+                </Button>
+              </Link>
+              <Link href="/dashboard/analytics">
+                <Button variant="outline" size="sm">
+                  <BarChart3 className="mr-1.5 h-4 w-4" />
+                  Analytics
                 </Button>
               </Link>
               <Link href="/watchlist">
