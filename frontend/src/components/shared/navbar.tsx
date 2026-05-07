@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { BarChart3, Bell, BellRing, Briefcase, Eye, LogIn, LogOut, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { fetchUnreadCount } from "@/lib/notifications";
 
@@ -80,6 +81,7 @@ export function Navbar() {
                   )}
                 </Button>
               </Link>
+              <ThemeToggle />
               <span className="text-sm text-muted-foreground">{user.email}</span>
               <Button variant="outline" size="sm" onClick={logout}>
                 <LogOut className="mr-1.5 h-4 w-4" />
@@ -88,6 +90,7 @@ export function Navbar() {
             </>
           ) : (
             <>
+              <ThemeToggle />
               <Link href="/login">
                 <Button variant="outline" size="sm">
                   <LogIn className="mr-1.5 h-4 w-4" />
