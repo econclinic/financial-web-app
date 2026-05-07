@@ -68,7 +68,7 @@ export default function NewTransactionPage() {
     <ProtectedRoute>
       <main className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto max-w-lg px-6 py-8">
+        <div className="container mx-auto max-w-lg px-4 py-6 sm:px-6 sm:py-8">
           <Link
             href="/portfolio"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"

@@ -87,7 +87,7 @@ export default function NotificationsPage() {
     <ProtectedRoute>
       <main className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-6 py-8">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="h-6 w-6" />
