@@ -32,7 +32,7 @@ export function PriceChart({ data, symbol }: PriceChartProps) {
   const padding = (maxPrice - minPrice) * 0.1 || 1;
 
   return (
-    <div className="aspect-[16/9] max-h-[400px] w-full">
+    <div className="h-[220px] w-full sm:h-[300px] lg:h-[380px]">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />

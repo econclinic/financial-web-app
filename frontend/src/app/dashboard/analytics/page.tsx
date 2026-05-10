@@ -216,7 +216,7 @@ function AllocationChart({
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-lg font-semibold">{title}</h3>
-      <div className="aspect-square max-h-[300px]">
+      <div className="h-[250px] w-full sm:h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -283,7 +283,7 @@ function PerformanceChart({
         </div>
       </div>
       {chartData.length > 0 ? (
-        <div className="aspect-[16/9] max-h-[400px] w-full">
+        <div className="h-[220px] w-full sm:h-[300px] lg:h-[380px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />

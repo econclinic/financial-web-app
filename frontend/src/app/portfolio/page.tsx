@@ -269,7 +269,7 @@ function PortfolioChart({ summary }: { summary: PortfolioSummary }) {
     <div className="mt-6 sm:mt-8">
       <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">{t("portfolio.allocation")}</h3>
       <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
-        <div className="aspect-[16/9] max-h-[400px] w-full">
+        <div className="h-[220px] w-full sm:h-[300px] lg:h-[380px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
