@@ -9,12 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/shared/navbar";
 import { ProtectedRoute } from "@/components/shared/protected-route";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocale } from "@/hooks/use-locale";
 import { createTransaction } from "@/lib/portfolio";
 
 const SYMBOLS = ["BTC", "ETH", "AAPL"];
 
 export default function NewTransactionPage() {
   const { token } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
 
   const [symbol, setSymbol] = useState("BTC");
@@ -73,12 +75,12 @@ export default function NewTransactionPage() {
             href="/portfolio"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to Portfolio
+            <ArrowLeft className="h-4 w-4 ltr:mr-1 rtl:ml-1 rtl:rotate-180" />
+            {t("newTransaction.back")}
           </Link>
 
           <h2 className="mt-4 text-2xl font-bold tracking-tight">
-            New Transaction
+            {t("newTransaction.title")}
           </h2>
 
           {error && (
@@ -93,7 +95,7 @@ export default function NewTransactionPage() {
                 htmlFor="symbol"
                 className="mb-1.5 block text-sm font-medium"
               >
-                Symbol
+                {t("newTransaction.symbol")}
               </label>
               <select
                 id="symbol"
@@ -111,13 +113,13 @@ export default function NewTransactionPage() {
 
             <div>
               <label className="mb-1.5 block text-sm font-medium">
-                Asset Type
+                {t("newTransaction.assetType")}
               </label>
               <div className="flex gap-3">
                 {(["crypto", "stock"] as const).map((type) => (
                   <label
                     key={type}
-                    className="flex items-center gap-2 text-sm capitalize"
+                    className="flex items-center gap-2 text-sm"
                   >
                     <input
                       type="radio"
@@ -127,7 +129,7 @@ export default function NewTransactionPage() {
                       onChange={() => setAssetType(type)}
                       className="accent-primary"
                     />
-                    {type}
+                    {t(`newTransaction.${type}`)}
                   </label>
                 ))}
               </div>
@@ -135,13 +137,13 @@ export default function NewTransactionPage() {
 
             <div>
               <label className="mb-1.5 block text-sm font-medium">
-                Transaction Type
+                {t("newTransaction.transactionType")}
               </label>
               <div className="flex gap-3">
                 {(["buy", "sell"] as const).map((type) => (
                   <label
                     key={type}
-                    className="flex items-center gap-2 text-sm capitalize"
+                    className="flex items-center gap-2 text-sm"
                   >
                     <input
                       type="radio"
@@ -151,7 +153,7 @@ export default function NewTransactionPage() {
                       onChange={() => setTransactionType(type)}
                       className="accent-primary"
                     />
-                    {type}
+                    {t(`newTransaction.${type}`)}
                   </label>
                 ))}
               </div>
@@ -162,7 +164,7 @@ export default function NewTransactionPage() {
                 htmlFor="quantity"
                 className="mb-1.5 block text-sm font-medium"
               >
-                Quantity
+                {t("newTransaction.quantity")}
               </label>
               <input
                 id="quantity"
@@ -182,7 +184,7 @@ export default function NewTransactionPage() {
                 htmlFor="price"
                 className="mb-1.5 block text-sm font-medium"
               >
-                Price (USD)
+                {t("newTransaction.price")}
               </label>
               <input
                 id="price"
@@ -198,7 +200,7 @@ export default function NewTransactionPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Submitting..." : "Add Transaction"}
+              {submitting ? t("newTransaction.submitting") : t("newTransaction.submit")}
             </Button>
           </form>
         </div>

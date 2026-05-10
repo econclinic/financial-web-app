@@ -26,11 +26,13 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/shared/navbar";
 import { ProtectedRoute } from "@/components/shared/protected-route";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocale } from "@/hooks/use-locale";
 import type { MarketPriceInfo, PortfolioSummary, PortfolioTransaction } from "@/lib/portfolio";
 import { fetchMarketPrices, fetchPortfolioSummary, fetchTransactions } from "@/lib/portfolio";
 
 export default function PortfolioPage() {
   const { token } = useAuth();
+  const { t } = useLocale();
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [transactions, setTransactions] = useState<PortfolioTransaction[]>([]);
   const [livePrices, setLivePrices] = useState<Record<string, MarketPriceInfo> | null>(null);
@@ -44,13 +46,13 @@ export default function PortfolioPage() {
 
     async function loadData() {
       try {
-        const [s, t] = await Promise.all([
+        const [s, txns] = await Promise.all([
           fetchPortfolioSummary(token!),
           fetchTransactions(token!),
         ]);
         if (cancelled) return;
         setSummary(s);
-        setTransactions(t);
+        setTransactions(txns);
       } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to load portfolio");
@@ -78,11 +80,11 @@ export default function PortfolioPage() {
         <Navbar />
         <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-bold tracking-tight">Portfolio</h2>
+            <h2 className="text-2xl font-bold tracking-tight">{t("portfolio.title")}</h2>
             <Link href="/portfolio/new-transaction">
               <Button size="sm">
-                <Plus className="mr-1.5 h-4 w-4" />
-                New Transaction
+                <Plus className="h-4 w-4 ltr:mr-1.5 rtl:ml-1.5" />
+                {t("portfolio.newTransaction")}
               </Button>
             </Link>
           </div>
@@ -90,7 +92,7 @@ export default function PortfolioPage() {
           {loading && (
             <div className="mt-8 flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading portfolio...
+              {t("portfolio.loading")}
             </div>
           )}
 
@@ -102,7 +104,7 @@ export default function PortfolioPage() {
 
           {priceError && (
             <div className="mt-4 rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
-              {priceError} — showing last cached prices.
+              {priceError} {t("portfolio.priceError")}
             </div>
           )}
 
@@ -118,7 +120,7 @@ export default function PortfolioPage() {
               {summary.positions.length === 0 && (
                 <div className="mt-8 rounded-xl border bg-card p-8 text-center shadow-sm">
                   <p className="text-muted-foreground">
-                    No positions yet. Add your first transaction to get started.
+                    {t("portfolio.noPositions")}
                   </p>
                 </div>
               )}
@@ -134,28 +136,29 @@ export default function PortfolioPage() {
 }
 
 function SummaryCards({ summary }: { summary: PortfolioSummary }) {
+  const { t } = useLocale();
   const pnlPositive = summary.total_pnl >= 0;
   const pnlPercent = summary.pnl_percentage.toFixed(2);
 
   const cards = [
     {
-      label: "Total Value",
+      label: t("portfolio.totalValue"),
       value: `$${summary.total_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
       icon: Wallet,
     },
     {
-      label: "Total Invested",
+      label: t("portfolio.totalInvested"),
       value: `$${summary.total_invested.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
       icon: DollarSign,
     },
     {
-      label: "Total P&L",
+      label: t("portfolio.totalPnl"),
       value: `${pnlPositive ? "+" : ""}$${summary.total_pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
       icon: TrendingUp,
       color: pnlPositive ? "text-green-600" : "text-red-600",
     },
     {
-      label: "Return",
+      label: t("portfolio.return"),
       value: `${pnlPositive ? "+" : ""}${pnlPercent}%`,
       icon: pnlPositive ? ArrowUpRight : ArrowDownRight,
       color: pnlPositive ? "text-green-600" : "text-red-600",
@@ -186,20 +189,22 @@ function PositionsTable({
   summary: PortfolioSummary;
   livePrices: Record<string, MarketPriceInfo> | null;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="mt-6 sm:mt-8">
-      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">Positions</h3>
+      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">{t("portfolio.positions")}</h3>
       <div className="-mx-4 overflow-x-auto sm:mx-0 sm:rounded-xl sm:border sm:bg-card sm:shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium">Symbol</th>
-              <th className="px-4 py-3 text-left font-medium">Type</th>
-              <th className="px-4 py-3 text-right font-medium">Quantity</th>
-              <th className="px-4 py-3 text-right font-medium">Avg Price</th>
-              <th className="px-4 py-3 text-right font-medium">Current Price</th>
-              <th className="px-4 py-3 text-right font-medium">Value</th>
-              <th className="px-4 py-3 text-right font-medium">P&L</th>
+              <th className="px-4 py-3 text-start font-medium">{t("portfolio.symbol")}</th>
+              <th className="px-4 py-3 text-start font-medium">{t("portfolio.type")}</th>
+              <th className="px-4 py-3 text-end font-medium">{t("portfolio.quantity")}</th>
+              <th className="px-4 py-3 text-end font-medium">{t("portfolio.avgPrice")}</th>
+              <th className="px-4 py-3 text-end font-medium">{t("portfolio.currentPrice")}</th>
+              <th className="px-4 py-3 text-end font-medium">{t("portfolio.value")}</th>
+              <th className="px-4 py-3 text-end font-medium">{t("portfolio.pnl")}</th>
             </tr>
           </thead>
           <tbody>
@@ -213,29 +218,29 @@ function PositionsTable({
                   <td className="px-4 py-3 capitalize text-muted-foreground">
                     {pos.asset_type}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     {pos.total_quantity.toLocaleString(undefined, {
                       maximumFractionDigits: 8,
                     })}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     ${pos.average_buy_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     <span className="inline-flex items-center gap-1.5">
                       ${pos.current_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       {isLive && (
                         <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
                           <Radio className="h-2.5 w-2.5" />
-                          Live
+                          {t("portfolio.live")}
                         </span>
                       )}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right font-medium">
+                  <td className="px-4 py-3 text-end font-medium">
                     ${pos.total_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
-                  <td className={`px-4 py-3 text-right font-medium ${pnlColor}`}>
+                  <td className={`px-4 py-3 text-end font-medium ${pnlColor}`}>
                     {pos.unrealized_pnl >= 0 ? "+" : ""}
                     ${pos.unrealized_pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
@@ -250,6 +255,7 @@ function PositionsTable({
 }
 
 function PortfolioChart({ summary }: { summary: PortfolioSummary }) {
+  const { t } = useLocale();
   const chartData = summary.positions.map((pos) => ({
     symbol: pos.symbol,
     value: pos.total_value,
@@ -261,9 +267,9 @@ function PortfolioChart({ summary }: { summary: PortfolioSummary }) {
 
   return (
     <div className="mt-6 sm:mt-8">
-      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">Portfolio Allocation</h3>
+      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">{t("portfolio.allocation")}</h3>
       <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
-        <div className="h-[250px] w-full sm:h-[300px]">
+        <div className="aspect-[16/9] max-h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
@@ -288,7 +294,7 @@ function PortfolioChart({ summary }: { summary: PortfolioSummary }) {
                   const num = Number(value);
                   return [
                     `$${num.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    "Value",
+                    t("portfolio.value"),
                   ];
                 }}
                 contentStyle={{
@@ -318,19 +324,21 @@ function TransactionHistory({
 }: {
   transactions: PortfolioTransaction[];
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="mt-6 sm:mt-8">
-      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">Transaction History</h3>
+      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">{t("portfolio.transactionHistory")}</h3>
       <div className="-mx-4 overflow-x-auto sm:mx-0 sm:rounded-xl sm:border sm:bg-card sm:shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium">Date</th>
-              <th className="px-4 py-3 text-left font-medium">Symbol</th>
-              <th className="px-4 py-3 text-left font-medium">Type</th>
-              <th className="px-4 py-3 text-right font-medium">Quantity</th>
-              <th className="px-4 py-3 text-right font-medium">Price</th>
-              <th className="px-4 py-3 text-right font-medium">Total</th>
+              <th className="px-4 py-3 text-start font-medium">{t("portfolio.date")}</th>
+              <th className="px-4 py-3 text-start font-medium">{t("portfolio.symbol")}</th>
+              <th className="px-4 py-3 text-start font-medium">{t("portfolio.type")}</th>
+              <th className="px-4 py-3 text-end font-medium">{t("portfolio.quantity")}</th>
+              <th className="px-4 py-3 text-end font-medium">{t("portfolio.price")}</th>
+              <th className="px-4 py-3 text-end font-medium">{t("portfolio.total")}</th>
             </tr>
           </thead>
           <tbody>
@@ -357,15 +365,15 @@ function TransactionHistory({
                       {txn.transaction_type.toUpperCase()}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     {txn.quantity.toLocaleString(undefined, {
                       maximumFractionDigits: 8,
                     })}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     ${txn.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="px-4 py-3 text-right font-medium">
+                  <td className="px-4 py-3 text-end font-medium">
                     ${(txn.quantity * txn.price).toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                     })}

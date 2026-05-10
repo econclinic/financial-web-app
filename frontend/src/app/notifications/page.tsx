@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/shared/navbar";
 import { ProtectedRoute } from "@/components/shared/protected-route";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocale } from "@/hooks/use-locale";
 import type { Notification } from "@/lib/notifications";
 import {
   fetchNotifications,
@@ -16,6 +17,7 @@ import {
 
 export default function NotificationsPage() {
   const { token } = useAuth();
+  const { t } = useLocale();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export default function NotificationsPage() {
             <div className="flex items-center gap-2">
               <Bell className="h-6 w-6" />
               <h2 className="text-2xl font-bold tracking-tight">
-                Notifications
+                {t("notifications.title")}
               </h2>
             </div>
             {hasUnread && (
@@ -103,43 +105,38 @@ export default function NotificationsPage() {
                 disabled={markingAll}
               >
                 {markingAll ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin ltr:mr-1.5 rtl:ml-1.5" />
                 ) : (
-                  <CheckCheck className="mr-1.5 h-4 w-4" />
+                  <CheckCheck className="h-4 w-4 ltr:mr-1.5 rtl:ml-1.5" />
                 )}
-                Mark all as read
+                {t("notifications.markAllRead")}
               </Button>
             )}
           </div>
 
-          {/* Loading state */}
           {loading && (
             <div className="mt-8 flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading notifications...
+              {t("notifications.loading")}
             </div>
           )}
 
-          {/* Error state */}
           {error && (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
               {error}
             </div>
           )}
 
-          {/* Empty state */}
           {!loading && !error && notifications.length === 0 && (
             <div className="mt-8 rounded-xl border bg-muted/40 p-8 text-center text-muted-foreground">
               <Bell className="mx-auto h-8 w-8 mb-2" />
-              <p>No notifications.</p>
+              <p>{t("notifications.empty")}</p>
               <p className="text-sm mt-1">
-                Notifications will appear here when your price alerts are
-                triggered.
+                {t("notifications.emptyHint")}
               </p>
             </div>
           )}
 
-          {/* Notifications list */}
           {!loading && notifications.length > 0 && (
             <div className="mt-6 space-y-3">
               {notifications.map((n) => (
@@ -175,11 +172,11 @@ export default function NotificationsPage() {
                       disabled={markingId === n.id}
                     >
                       {markingId === n.id ? (
-                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin ltr:mr-1.5 rtl:ml-1.5" />
                       ) : (
-                        <MailOpen className="mr-1.5 h-4 w-4" />
+                        <MailOpen className="h-4 w-4 ltr:mr-1.5 rtl:ml-1.5" />
                       )}
-                      Mark as read
+                      {t("notifications.markRead")}
                     </Button>
                   )}
                 </div>
