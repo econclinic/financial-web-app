@@ -45,7 +45,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </head>
-      <body className="min-h-screen overflow-x-hidden">
+      <body>
         <ThemeProvider>
           <LocaleProvider>
             <AuthProvider>{children}</AuthProvider>
