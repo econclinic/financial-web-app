@@ -39,13 +39,13 @@ export default function RootLayout({
     <html
       lang="en"
       dir="ltr"
-      className={`${inter.variable} ${vazirmatn.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${inter.variable} ${vazirmatn.variable} ${geistMono.variable} dark antialiased`}
       suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-screen overflow-x-hidden">
         <ThemeProvider>
           <LocaleProvider>
             <AuthProvider>{children}</AuthProvider>
