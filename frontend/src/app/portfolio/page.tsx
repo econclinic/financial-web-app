@@ -76,8 +76,8 @@ export default function PortfolioPage() {
     <ProtectedRoute>
       <main className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
+          <div className="flex items-center justify-between gap-4">
             <h2 className="text-2xl font-bold tracking-tight">Portfolio</h2>
             <Link href="/portfolio/new-transaction">
               <Button size="sm">
@@ -163,9 +163,9 @@ function SummaryCards({ summary }: { summary: PortfolioSummary }) {
   ];
 
   return (
-    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mt-6 grid gap-3 grid-cols-2 lg:grid-cols-4 sm:gap-4">
       {cards.map(({ label, value, icon: Icon, color }) => (
-        <div key={label} className="rounded-xl border bg-card p-6 shadow-sm">
+        <div key={label} className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-primary/10 p-2">
               <Icon className="h-5 w-5 text-primary" />
@@ -187,9 +187,9 @@ function PositionsTable({
   livePrices: Record<string, MarketPriceInfo> | null;
 }) {
   return (
-    <div className="mt-8">
-      <h3 className="mb-4 text-lg font-semibold">Positions</h3>
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+    <div className="mt-6 sm:mt-8">
+      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">Positions</h3>
+      <div className="-mx-4 overflow-x-auto sm:mx-0 sm:rounded-xl sm:border sm:bg-card sm:shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
@@ -260,10 +260,10 @@ function PortfolioChart({ summary }: { summary: PortfolioSummary }) {
   const padding = maxValue * 0.1 || 1;
 
   return (
-    <div className="mt-8">
-      <h3 className="mb-4 text-lg font-semibold">Portfolio Allocation</h3>
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
-        <div className="h-[300px] w-full">
+    <div className="mt-6 sm:mt-8">
+      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">Portfolio Allocation</h3>
+      <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+        <div className="h-[250px] w-full sm:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
@@ -319,9 +319,9 @@ function TransactionHistory({
   transactions: PortfolioTransaction[];
 }) {
   return (
-    <div className="mt-8">
-      <h3 className="mb-4 text-lg font-semibold">Transaction History</h3>
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+    <div className="mt-6 sm:mt-8">
+      <h3 className="mb-3 text-base font-semibold sm:mb-4 sm:text-lg">Transaction History</h3>
+      <div className="-mx-4 overflow-x-auto sm:mx-0 sm:rounded-xl sm:border sm:bg-card sm:shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">

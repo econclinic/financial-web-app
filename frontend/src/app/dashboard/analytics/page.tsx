@@ -93,7 +93,7 @@ export default function AnalyticsPage() {
     <ProtectedRoute>
       <main className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-6 py-8">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
           <h2 className="text-2xl font-bold tracking-tight">Portfolio Analytics</h2>
 
           {loading && (
@@ -112,7 +112,7 @@ export default function AnalyticsPage() {
           {!loading && !error && overview && (
             <>
               <OverviewCards overview={overview} />
-              <div className="mt-8 grid gap-8 lg:grid-cols-2">
+              <div className="mt-6 grid gap-4 sm:mt-8 sm:gap-8 lg:grid-cols-2">
                 <AllocationChart
                   title="Allocation by Asset Class"
                   data={overview.allocation_by_asset_type}
@@ -180,7 +180,7 @@ function OverviewCards({ overview }: { overview: PortfolioOverview }) {
   ];
 
   return (
-    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mt-6 grid gap-3 grid-cols-2 lg:grid-cols-4 sm:gap-4">
       {cards.map((c) => (
         <div
           key={c.label}
@@ -255,12 +255,12 @@ function PerformanceChart({
 
   return (
     <div className="mt-8 rounded-xl border bg-card p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-base font-semibold sm:text-lg">
           <BarChart3 className="mr-2 inline h-5 w-5" />
           Portfolio Performance
         </h3>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {RANGE_OPTIONS.map((r) => (
             <button
               key={r}
@@ -316,7 +316,7 @@ function TopMovers({
   if (gainers.length === 0 && losers.length === 0) return null;
 
   return (
-    <div className="mt-8 grid gap-8 md:grid-cols-2">
+    <div className="mt-6 grid gap-4 sm:mt-8 sm:gap-8 md:grid-cols-2">
       <MoverList title="Top Gainers" items={gainers} positive />
       <MoverList title="Top Losers" items={losers} positive={false} />
     </div>

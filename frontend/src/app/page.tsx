@@ -19,7 +19,7 @@ export default function DashboardPage() {
       <main className="min-h-screen bg-background">
         <Navbar />
 
-        <div className="container mx-auto px-6 py-8">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map(({ label, value, icon: Icon }) => (
               <div

@@ -86,14 +86,14 @@ export default function AlertsPage() {
     <ProtectedRoute>
       <main className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-6 py-8">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
           <div className="flex items-center gap-2">
             <Bell className="h-6 w-6" />
             <h2 className="text-2xl font-bold tracking-tight">Price Alerts</h2>
           </div>
 
           {/* Create alert form */}
-          <form onSubmit={handleCreate} className="mt-6 flex flex-wrap items-end gap-3">
+          <form onSubmit={handleCreate} className="mt-6 grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
             <div>
               <label className="mb-1 block text-sm font-medium">Symbol</label>
               <select
@@ -173,7 +173,7 @@ export default function AlertsPage() {
 
           {/* Alerts table */}
           {!loading && alerts.length > 0 && (
-            <div className="mt-6 overflow-x-auto rounded-xl border">
+            <div className="mt-6 -mx-4 overflow-x-auto sm:mx-0 sm:rounded-xl sm:border">
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40">
                   <tr>

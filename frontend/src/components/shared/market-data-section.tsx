@@ -62,7 +62,7 @@ export function MarketDataSection() {
   }
 
   return (
-    <div className="mt-8 space-y-6">
+    <div className="mt-6 space-y-4 sm:mt-8 sm:space-y-6">
       <h2 className="text-lg font-semibold">Market Data</h2>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

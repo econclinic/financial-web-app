@@ -88,14 +88,14 @@ export default function WatchlistPage() {
     <ProtectedRoute>
       <main className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-6 py-8">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
           <div className="flex items-center gap-2">
             <Eye className="h-6 w-6" />
             <h2 className="text-2xl font-bold tracking-tight">Watchlist</h2>
           </div>
 
           {/* Add symbol form */}
-          <form onSubmit={handleAdd} className="mt-6 flex items-center gap-3">
+          <form onSubmit={handleAdd} className="mt-6 flex flex-wrap items-center gap-3">
             <input
               type="text"
               placeholder="Enter symbol (e.g. BTC)"
@@ -145,7 +145,7 @@ export default function WatchlistPage() {
 
           {/* Watchlist table */}
           {!loading && items.length > 0 && (
-            <div className="mt-6 overflow-x-auto rounded-xl border">
+            <div className="mt-6 -mx-4 overflow-x-auto sm:mx-0 sm:rounded-xl sm:border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
