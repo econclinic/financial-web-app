@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { LocaleProvider } from "@/hooks/use-locale";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
   description: "Professional financial analytics dashboard",
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem("app-theme");if(t==="light")document.documentElement.classList.remove("dark");else document.documentElement.classList.add("dark")}catch(e){document.documentElement.classList.add("dark")}})()`;
+const initScript = `(function(){try{var t=localStorage.getItem("app-theme");if(t==="light")document.documentElement.classList.remove("dark");else document.documentElement.classList.add("dark")}catch(e){document.documentElement.classList.add("dark")}try{var l=localStorage.getItem("app-locale");if(l==="fa"){document.documentElement.lang="fa";document.documentElement.dir="rtl"}else{document.documentElement.lang="en";document.documentElement.dir="ltr"}}catch(e){}})()`;
 
 export default function RootLayout({
   children,
@@ -37,15 +38,18 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      dir="ltr"
       className={`${inter.variable} ${vazirmatn.variable} ${geistMono.variable} dark h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <LocaleProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>
