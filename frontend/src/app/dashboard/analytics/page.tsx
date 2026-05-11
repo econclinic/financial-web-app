@@ -27,6 +27,7 @@ import {
 import { Navbar } from "@/components/shared/navbar";
 import { ProtectedRoute } from "@/components/shared/protected-route";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocale } from "@/hooks/use-locale";
 import type {
   PortfolioOverview,
   PortfolioHistory,
@@ -46,6 +47,7 @@ function fmt(n: number): string {
 
 export default function AnalyticsPage() {
   const { token } = useAuth();
+  const { t } = useLocale();
   const [overview, setOverview] = useState<PortfolioOverview | null>(null);
   const [history, setHistory] = useState<PortfolioHistory | null>(null);
   const [selectedRange, setSelectedRange] = useState<string>("1m");
@@ -94,12 +96,12 @@ export default function AnalyticsPage() {
       <main className="min-h-screen bg-background">
         <Navbar />
         <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
-          <h2 className="text-2xl font-bold tracking-tight">Portfolio Analytics</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{t("analytics.title")}</h2>
 
           {loading && (
             <div className="mt-8 flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading analytics...
+              {t("analytics.loading")}
             </div>
           )}
 
@@ -114,11 +116,11 @@ export default function AnalyticsPage() {
               <OverviewCards overview={overview} />
               <div className="mt-6 grid gap-4 sm:mt-8 sm:gap-8 lg:grid-cols-2">
                 <AllocationChart
-                  title="Allocation by Asset Class"
+                  title={t("analytics.allocationByClass")}
                   data={overview.allocation_by_asset_type}
                 />
                 <AllocationChart
-                  title="Allocation by Symbol"
+                  title={t("analytics.allocationBySymbol")}
                   data={overview.allocation_by_symbol}
                 />
               </div>
@@ -137,7 +139,7 @@ export default function AnalyticsPage() {
           {!loading && !error && overview && overview.total_value === 0 && (
             <div className="mt-8 rounded-xl border bg-card p-8 text-center shadow-sm">
               <p className="text-muted-foreground">
-                No portfolio data. Add transactions to see analytics.
+                {t("analytics.noData")}
               </p>
             </div>
           )}
@@ -148,31 +150,32 @@ export default function AnalyticsPage() {
 }
 
 function OverviewCards({ overview }: { overview: PortfolioOverview }) {
+  const { t } = useLocale();
   const pnlPositive = overview.total_pnl >= 0;
   const todayPositive = overview.today_change_value >= 0;
 
   const cards = [
     {
-      label: "Total Value",
+      label: t("analytics.totalValue"),
       value: `$${fmt(overview.total_value)}`,
       icon: Wallet,
       color: "text-blue-500",
     },
     {
-      label: "Today's Change",
+      label: t("analytics.todaysChange"),
       value: `${todayPositive ? "+" : ""}$${fmt(overview.today_change_value)}`,
       sub: `${todayPositive ? "+" : ""}${overview.today_change_percent.toFixed(2)}%`,
       icon: todayPositive ? ArrowUpRight : ArrowDownRight,
       color: todayPositive ? "text-green-500" : "text-red-500",
     },
     {
-      label: "Total P&L",
+      label: t("analytics.totalPnl"),
       value: `${pnlPositive ? "+" : ""}$${fmt(overview.total_pnl)}`,
       icon: pnlPositive ? TrendingUp : TrendingDown,
       color: pnlPositive ? "text-green-500" : "text-red-500",
     },
     {
-      label: "Cost Basis",
+      label: t("analytics.costBasis"),
       value: `$${fmt(overview.total_cost_basis)}`,
       icon: DollarSign,
       color: "text-gray-500",
@@ -213,25 +216,27 @@ function AllocationChart({
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-lg font-semibold">{title}</h3>
-      <ResponsiveContainer width="100%" height={250}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            innerRadius={50}
-            outerRadius={90}
-            dataKey="value"
-            nameKey="name"
-            label={({ name, value }) => `${name} ${value}%`}
-          >
-            {chartData.map((_, i) => (
-              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip formatter={(v) => `${v}%`} />
-        </PieChart>
-      </ResponsiveContainer>
+      <div className="h-[250px] w-full sm:h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={90}
+              dataKey="value"
+              nameKey="name"
+              label={({ name, value }) => `${name} ${value}%`}
+            >
+              {chartData.map((_, i) => (
+                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v) => `${v}%`} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
@@ -245,6 +250,7 @@ function PerformanceChart({
   selectedRange: string;
   onRangeChange: (r: string) => void;
 }) {
+  const { t } = useLocale();
   const chartData = (history?.data ?? []).map((p) => ({
     date: new Date(p.timestamp).toLocaleDateString(undefined, {
       month: "short",
@@ -257,8 +263,8 @@ function PerformanceChart({
     <div className="mt-8 rounded-xl border bg-card p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-base font-semibold sm:text-lg">
-          <BarChart3 className="mr-2 inline h-5 w-5" />
-          Portfolio Performance
+          <BarChart3 className="inline h-5 w-5 ltr:mr-2 rtl:ml-2" />
+          {t("analytics.performance")}
         </h3>
         <div className="flex flex-wrap gap-1">
           {RANGE_OPTIONS.map((r) => (
@@ -277,29 +283,31 @@ function PerformanceChart({
         </div>
       </div>
       {chartData.length > 0 ? (
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-            <YAxis
-              tick={{ fontSize: 12 }}
-              tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
-            />
-            <Tooltip
-              formatter={(v) => [`$${fmt(Number(v))}`, "Portfolio Value"]}
-            />
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="h-[220px] w-full sm:h-[300px] lg:h-[380px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                formatter={(v) => [`$${fmt(Number(v))}`, t("analytics.totalValue")]}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       ) : (
         <p className="py-12 text-center text-muted-foreground">
-          No history data available.
+          {t("analytics.noHistory")}
         </p>
       )}
     </div>
@@ -313,12 +321,13 @@ function TopMovers({
   gainers: SymbolPnl[];
   losers: SymbolPnl[];
 }) {
+  const { t } = useLocale();
   if (gainers.length === 0 && losers.length === 0) return null;
 
   return (
     <div className="mt-6 grid gap-4 sm:mt-8 sm:gap-8 md:grid-cols-2">
-      <MoverList title="Top Gainers" items={gainers} positive />
-      <MoverList title="Top Losers" items={losers} positive={false} />
+      <MoverList title={t("analytics.topGainers")} items={gainers} positive />
+      <MoverList title={t("analytics.topLosers")} items={losers} positive={false} />
     </div>
   );
 }
@@ -338,9 +347,9 @@ function MoverList({
     <div className="rounded-xl border bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-lg font-semibold">
         {positive ? (
-          <TrendingUp className="mr-2 inline h-5 w-5 text-green-500" />
+          <TrendingUp className="inline h-5 w-5 text-green-500 ltr:mr-2 rtl:ml-2" />
         ) : (
-          <TrendingDown className="mr-2 inline h-5 w-5 text-red-500" />
+          <TrendingDown className="inline h-5 w-5 text-red-500 ltr:mr-2 rtl:ml-2" />
         )}
         {title}
       </h3>
@@ -356,7 +365,7 @@ function MoverList({
                 ${fmt(item.current_price)}
               </p>
             </div>
-            <div className="text-right">
+            <div className="text-end">
               <p className="font-semibold">${fmt(item.value)}</p>
               <p
                 className={`text-sm font-medium ${

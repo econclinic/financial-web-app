@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/shared/navbar";
 import { ProtectedRoute } from "@/components/shared/protected-route";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocale } from "@/hooks/use-locale";
 import type { Alert } from "@/lib/alerts";
 import { createAlert, deleteAlert, fetchAlerts } from "@/lib/alerts";
 
@@ -14,6 +15,7 @@ const SUPPORTED_SYMBOLS = ["BTC", "ETH", "AAPL"];
 
 export default function AlertsPage() {
   const { token } = useAuth();
+  const { t } = useLocale();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,13 +91,13 @@ export default function AlertsPage() {
         <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
           <div className="flex items-center gap-2">
             <Bell className="h-6 w-6" />
-            <h2 className="text-2xl font-bold tracking-tight">Price Alerts</h2>
+            <h2 className="text-2xl font-bold tracking-tight">{t("alerts.title")}</h2>
           </div>
 
           {/* Create alert form */}
           <form onSubmit={handleCreate} className="mt-6 grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
             <div>
-              <label className="mb-1 block text-sm font-medium">Symbol</label>
+              <label className="mb-1 block text-sm font-medium">{t("alerts.symbol")}</label>
               <select
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
@@ -109,18 +111,18 @@ export default function AlertsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Direction</label>
+              <label className="mb-1 block text-sm font-medium">{t("alerts.direction")}</label>
               <select
                 value={direction}
                 onChange={(e) => setDirection(e.target.value)}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="above">Above</option>
-                <option value="below">Below</option>
+                <option value="above">{t("alerts.above")}</option>
+                <option value="below">{t("alerts.below")}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Target Price ($)</label>
+              <label className="mb-1 block text-sm font-medium">{t("alerts.targetPrice")}</label>
               <input
                 type="number"
                 step="any"
@@ -133,11 +135,11 @@ export default function AlertsPage() {
             </div>
             <Button type="submit" size="sm" disabled={adding || !targetPrice}>
               {adding ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin ltr:mr-1.5 rtl:ml-1.5" />
               ) : (
-                <Plus className="mr-1.5 h-4 w-4" />
+                <Plus className="h-4 w-4 ltr:mr-1.5 rtl:ml-1.5" />
               )}
-              Create Alert
+              {t("alerts.create")}
             </Button>
           </form>
 
@@ -147,41 +149,37 @@ export default function AlertsPage() {
             </div>
           )}
 
-          {/* Loading state */}
           {loading && (
             <div className="mt-8 flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading alerts...
+              {t("alerts.loading")}
             </div>
           )}
 
-          {/* Error state */}
           {error && (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
               {error}
             </div>
           )}
 
-          {/* Empty state */}
           {!loading && !error && alerts.length === 0 && (
             <div className="mt-8 rounded-xl border bg-muted/40 p-8 text-center text-muted-foreground">
               <Bell className="mx-auto h-8 w-8 mb-2" />
-              <p>No alerts set.</p>
-              <p className="text-sm mt-1">Create an alert above to get started.</p>
+              <p>{t("alerts.noAlerts")}</p>
+              <p className="text-sm mt-1">{t("alerts.noAlertsHint")}</p>
             </div>
           )}
 
-          {/* Alerts table */}
           {!loading && alerts.length > 0 && (
             <div className="mt-6 -mx-4 overflow-x-auto sm:mx-0 sm:rounded-xl sm:border">
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium">Symbol</th>
-                    <th className="px-4 py-3 text-left font-medium">Condition</th>
-                    <th className="px-4 py-3 text-left font-medium">Status</th>
-                    <th className="px-4 py-3 text-left font-medium">Triggered At</th>
-                    <th className="px-4 py-3 text-right font-medium">Actions</th>
+                    <th className="px-4 py-3 text-start font-medium">{t("alerts.symbol")}</th>
+                    <th className="px-4 py-3 text-start font-medium">{t("alerts.condition")}</th>
+                    <th className="px-4 py-3 text-start font-medium">{t("alerts.status")}</th>
+                    <th className="px-4 py-3 text-start font-medium">{t("alerts.triggeredAt")}</th>
+                    <th className="px-4 py-3 text-end font-medium">{t("alerts.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -196,24 +194,24 @@ export default function AlertsPage() {
                     >
                       <td className="px-4 py-3 font-medium">{alert.symbol}</td>
                       <td className="px-4 py-3">
-                        {alert.direction === "above" ? "Above" : "Below"} $
+                        {alert.direction === "above" ? t("alerts.above") : t("alerts.below")} $
                         {alert.target_price.toLocaleString()}
                       </td>
                       <td className="px-4 py-3">
                         {alert.is_triggered ? (
                           <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">
-                            Triggered
+                            {t("alerts.triggered")}
                           </span>
                         ) : (
                           <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                            Active
+                            {t("alerts.active")}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {formatDate(alert.triggered_at)}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-end">
                         <Button
                           variant="outline"
                           size="sm"
@@ -221,11 +219,11 @@ export default function AlertsPage() {
                           disabled={deleting === alert.id}
                         >
                           {deleting === alert.id ? (
-                            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin ltr:mr-1.5 rtl:ml-1.5" />
                           ) : (
-                            <Trash2 className="mr-1.5 h-4 w-4" />
+                            <Trash2 className="h-4 w-4 ltr:mr-1.5 rtl:ml-1.5" />
                           )}
-                          Delete
+                          {t("alerts.delete")}
                         </Button>
                       </td>
                     </tr>
