@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { BarChart3, TrendingUp, Wallet, ArrowUpRight } from "lucide-react";
 
 import { MarketDataSection } from "@/components/shared/market-data-section";
 import { Navbar } from "@/components/shared/navbar";
 import { ProtectedRoute } from "@/components/shared/protected-route";
+import { SmartSummaryCard } from "@/components/shared/smart-summary-card";
 import { useLocale } from "@/hooks/use-locale";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import type { MarketQuote } from "@/lib/market-data";
 
 const stats: { labelKey: TranslationKey; value: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { labelKey: "dashboard.portfolioValue", value: "$0.00", icon: Wallet },
@@ -17,6 +20,7 @@ const stats: { labelKey: TranslationKey; value: string; icon: React.ComponentTyp
 
 export default function DashboardPage() {
   const { t } = useLocale();
+  const [quotes, setQuotes] = useState<MarketQuote[]>([]);
 
   return (
     <ProtectedRoute>
@@ -41,7 +45,13 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <MarketDataSection />
+          {quotes.length > 0 && (
+            <div className="mt-6 sm:mt-8">
+              <SmartSummaryCard quotes={quotes} />
+            </div>
+          )}
+
+          <MarketDataSection onQuotesLoaded={setQuotes} />
         </div>
       </main>
     </ProtectedRoute>

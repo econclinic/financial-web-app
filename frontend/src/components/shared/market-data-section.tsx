@@ -8,7 +8,11 @@ import { useLocale } from "@/hooks/use-locale";
 import type { MarketQuote, PricePoint } from "@/lib/market-data";
 import { fetchLatestQuotes, fetchPriceHistory } from "@/lib/market-data";
 
-export function MarketDataSection() {
+interface MarketDataSectionProps {
+  onQuotesLoaded?: (quotes: MarketQuote[]) => void;
+}
+
+export function MarketDataSection({ onQuotesLoaded }: MarketDataSectionProps) {
   const { t } = useLocale();
   const [quotes, setQuotes] = useState<MarketQuote[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState<string>("BTC");
@@ -25,6 +29,7 @@ export function MarketDataSection() {
         setQuotes(quotesData);
         setHistory(historyData.history);
         setLoading(false);
+        onQuotesLoaded?.(quotesData);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -35,7 +40,7 @@ export function MarketDataSection() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onQuotesLoaded]);
 
   function handleSelectSymbol(symbol: string) {
     setSelectedSymbol(symbol);

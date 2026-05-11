@@ -136,6 +136,13 @@ const en = {
   "auth.signInLink": "Sign in",
   "auth.registerLink": "Register",
 
+  // Smart Summary
+  "summary.title": "Market Insights",
+  "summary.marketTrend": "Avg. Daily Change",
+  "summary.combined": "combined",
+  "summary.bestPerformer": "Best Performer",
+  "summary.worstPerformer": "Worst Performer",
+
   // Common
   "common.loading": "Loading...",
   "common.error": "Error",
@@ -271,6 +278,13 @@ const fa: Record<keyof typeof en, string> = {
   "auth.hasAccount": "قبلاً حساب دارید؟",
   "auth.signInLink": "ورود",
   "auth.registerLink": "ثبت‌نام",
+
+  // Smart Summary
+  "summary.title": "بینش بازار",
+  "summary.marketTrend": "میانگین تغییر روزانه",
+  "summary.combined": "مجموع",
+  "summary.bestPerformer": "بهترین عملکرد",
+  "summary.worstPerformer": "ضعیف‌ترین عملکرد",
 
   // Common
   "common.loading": "بارگذاری...",
