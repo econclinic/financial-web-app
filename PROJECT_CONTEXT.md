@@ -9,7 +9,7 @@
 **AI Finance WebApp** is a modular financial web application that provides a dashboard for viewing market data, managing authentication, and tracking portfolios with real-time prices.
 
 - **Typical user:** A retail investor or finance enthusiast who wants a single dashboard to monitor prices, manage a watchlist, and analyse market trends.
-- **Current maturity:** Early MVP. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, a portfolio module for recording transactions and tracking positions with live P&L, a watchlist, and price alerts with a background trigger worker. There is no real brokerage integration or production database yet.
+- **Current maturity:** Mid-stage MVP. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, a portfolio module with analytics dashboard, a watchlist, price alerts with background trigger worker and in-app notifications, dark/light theme, bilingual i18n (EN/FA) with full RTL support, responsive mobile-first layouts, and a smart market insights card. There is no real brokerage integration or production database yet.
 
 ---
 
@@ -39,7 +39,9 @@
 | Component library | shadcn/ui (backed by @base-ui/react) |
 | Icons | Lucide React |
 | Charts | Recharts 3.8 |
-| Fonts | Geist Sans + Geist Mono (via `next/font/google`) |
+| Fonts | Inter + Vazirmatn + Geist Mono (via `next/font/google`) |
+| i18n | Client-side only; `useLocale()` hook + localStorage (`app-locale`) |
+| Theme | Dark/light; `useTheme()` hook + localStorage (`app-theme`) |
 
 ### Infrastructure
 
@@ -498,7 +500,7 @@ financial-web-app/
     ├── components.json               # shadcn/ui configuration
     └── src/
         ├── app/
-        │   ├── layout.tsx            # Root layout (AuthProvider, fonts, metadata)
+        │   ├── layout.tsx            # Root layout (ThemeProvider, LocaleProvider, AuthProvider, fonts, anti-FOUC script)
         │   ├── page.tsx              # Dashboard (protected)
         │   ├── login/page.tsx        # Login page
         │   ├── register/page.tsx     # Register page
@@ -518,9 +520,14 @@ financial-web-app/
         │       ├── protected-route.tsx
         │       ├── market-data-section.tsx
         │       ├── price-card.tsx
-        │       └── price-chart.tsx
+        │       ├── price-chart.tsx
+        │       ├── theme-toggle.tsx       # Sun/Moon theme toggle
+        │       ├── language-toggle.tsx    # Globe language toggle (EN ↔ FA)
+        │       └── smart-summary-card.tsx # Market insights summary card
         ├── hooks/
-        │   └── use-auth.tsx          # AuthProvider + useAuth context
+        │   ├── use-auth.tsx          # AuthProvider + useAuth context
+        │   ├── use-theme.tsx         # ThemeProvider + useTheme (useSyncExternalStore)
+        │   └── use-locale.tsx        # LocaleProvider + useLocale (useSyncExternalStore)
         └── lib/
             ├── api.ts                # Base API client utility
             ├── auth.ts               # Auth API functions
@@ -528,7 +535,9 @@ financial-web-app/
             ├── portfolio.ts          # Portfolio API functions
             ├── watchlist.ts          # Watchlist API functions
             ├── alerts.ts            # Alerts API functions
-            └── utils.ts              # cn() helper (tailwind-merge + clsx)
+            ├── utils.ts              # cn() helper (tailwind-merge + clsx)
+            └── i18n/
+                └── translations.ts   # EN + FA dictionaries, t() helper, TranslationKey type
 ```
 
 ---
@@ -634,6 +643,73 @@ Both jobs use caching (`pip` and `npm`) to speed up repeat runs. The jobs run in
 
 **Dev dependencies:** Backend linting and testing tools are in `requirements-dev.txt` (ruff, pytest). Install them locally with `pip install -r requirements-dev.txt`.
 
+---
+
+## UI/UX Transformation (Phases 1–5 Complete)
+
+The app underwent a 7-phase UI/UX transformation delivered as isolated, sequential PRs. Each phase was a separate feature branch merged into `main` before the next began.
+
+### Phase 1 — Design Tokens + Theme System (PR #12)
+- Full dark/light theme via CSS custom properties (HSL-based design tokens in `globals.css`).
+- Dark mode is default; theme persists in `localStorage` under key `app-theme`.
+- Sun/Moon toggle button in navbar (uses `useTheme()` hook with `useSyncExternalStore`).
+- Anti-FOUC inline script in `<head>` reads `app-theme` before React hydrates.
+
+### Phase 2 — Typography + Font Loading (PR #13)
+- **Inter** (Latin) and **Vazirmatn** (Arabic/Persian) loaded via `next/font/google`.
+- Font stack: `Vazirmatn, Inter, ui-sans-serif, system-ui, sans-serif`.
+- Heading font-family token `--font-heading` shares the same stack.
+- Weights used: 400 (body), 500 (labels), 600 (headings/bold).
+- Typography tokens applied globally in `@layer base` (h1–h4 sizes, line-heights, letter-spacing).
+
+### Phase 3 — Responsive Layouts (PR #14)
+- Mobile-first responsive grids across Dashboard, Analytics, Portfolio, Alerts, Watchlist.
+- Mobile hamburger menu in navbar (hidden on `md:`+).
+- Edge-to-edge tables on mobile with horizontal scroll.
+- Consistent `container mx-auto px-4 sm:px-6` spacing pattern.
+
+### Phase 4 — i18n + RTL Support (PR #15)
+- **Languages:** English (EN) and Persian/Farsi (FA).
+- Translation file: `frontend/src/lib/i18n/translations.ts` — 100+ flat dot-notation keys.
+- `useLocale()` hook (mirrors `useTheme()` pattern with `useSyncExternalStore`).
+- `LocaleProvider` wraps app; locale persists in `localStorage` under key `app-locale`.
+- Globe icon toggle in navbar switches between EN ↔ FA.
+- Dynamic `dir="rtl|ltr"` and `lang` attributes on `<html>`.
+- Anti-FOUC inline script reads `app-locale` and sets `dir`/`lang` before hydration.
+- RTL text alignment rules in `globals.css` (`html[dir="rtl"] { text-align: right }`).
+- Directional spacing via Tailwind `ltr:`/`rtl:` variants where needed.
+- All pages translated: Dashboard, Portfolio, Analytics, Alerts, Watchlist, Notifications, Auth.
+
+**Key decisions:**
+- No route-based i18n (no `[lang]` segment); locale is client-side only via localStorage.
+- `overflow-x: clip` was initially used on `<html>` for RTL overflow prevention but was removed because it caused scroll clipping on some Chrome DevTools device presets (viewport overflow propagation issue). RTL horizontal overflow is instead handled by keeping content within viewport width via responsive utilities.
+
+### Phase 5 — Smart Summary Card (PR #16)
+- `SmartSummaryCard` component on the Dashboard showing real-time market insights:
+  - **Avg. Daily Change:** Mean percentage change across all tracked assets (color-coded).
+  - **Total absolute change:** Combined dollar change across all assets.
+  - **Best Performer:** Asset with highest daily percentage gain.
+  - **Worst Performer:** Asset with lowest daily percentage change.
+- Responsive 3-column grid (stacks on mobile).
+- `MarketDataSection` exposes quotes via `onQuotesLoaded` callback prop.
+- 5 new i18n keys (EN + FA) under `summary.*` namespace.
+- Card renders only after market data loads (no flash of empty state).
+
+**Key files added during UI/UX transformation:**
+
+```
+frontend/src/hooks/use-theme.tsx                          # Theme state (useSyncExternalStore)
+frontend/src/hooks/use-locale.tsx                         # Locale state (useSyncExternalStore)
+frontend/src/components/shared/theme-toggle.tsx           # Sun/Moon toggle button
+frontend/src/components/shared/language-toggle.tsx        # Globe toggle button (EN ↔ FA)
+frontend/src/components/shared/smart-summary-card.tsx     # Market insights card
+frontend/src/lib/i18n/translations.ts                     # EN + FA translation dictionaries
+```
+
+### Phases 6–7 — Remaining (Not Yet Started)
+- **Phase 6 — Benchmark Comparison:** Add benchmark selector (None, BTC, S&P 500) to analytics chart.
+- **Phase 7 — Alerts Upgrade + UX Polish:** New alert rule types, toast notifications, skeleton loaders, empty states.
+
 ### For AI agents
 
 1. **Read `PROJECT_CONTEXT.md` first** before making any changes.
@@ -657,3 +733,10 @@ Both jobs use caching (`pip` and `npm`) to speed up repeat runs. The jobs run in
 | 5c | Portfolio Analytics (MVP) | Done | Performance dashboard with overview cards, allocation pie charts, historical line chart, top movers. 5-min in-memory caching. |
 | 6 | CI/CD Pipeline | Done | GitHub Actions CI with parallel backend (ruff + pytest) and frontend (ESLint + build) jobs. |
 | 7 | AI Analysis Tools | Planned | Summarise trends, generate trade ideas, or score sentiment with LLMs. |
+| 8a | UI Phase 1 — Theme System | Done | Dark/light theme with CSS tokens, toggle, localStorage persistence, anti-FOUC. |
+| 8b | UI Phase 2 — Typography | Done | Inter + Vazirmatn fonts, typography tokens, heading/body styles. |
+| 8c | UI Phase 3 — Responsive Layouts | Done | Mobile-first grids, hamburger menu, edge-to-edge tables. |
+| 8d | UI Phase 4 — i18n + RTL | Done | EN/FA translations, locale toggle, dynamic RTL, Tailwind directional variants. |
+| 8e | UI Phase 5 — Smart Summary Card | Done | Market insights card: avg change, best/worst performers, responsive layout. |
+| 8f | UI Phase 6 — Benchmark Comparison | In Progress | Benchmark selector (None/BTC/S&P 500) on analytics chart with mock data. |
+| 8g | UI Phase 7 — Alerts Upgrade + UX Polish | Planned | New alert rule types, toast notifications, skeleton loaders, empty states. |
