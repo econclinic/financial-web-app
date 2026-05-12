@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -14,6 +14,7 @@ import {
 import {
   CartesianGrid,
   Cell,
+  Legend,
   Line,
   LineChart,
   Pie,
@@ -37,6 +38,8 @@ import {
   fetchPortfolioOverview,
   fetchPortfolioHistory,
 } from "@/lib/analytics";
+import type { BenchmarkId } from "@/lib/benchmark-data";
+import { getBenchmarkData, getBenchmarkLabel } from "@/lib/benchmark-data";
 
 const RANGE_OPTIONS = ["1m", "3m", "6m", "1y", "all"] as const;
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
@@ -51,6 +54,7 @@ export default function AnalyticsPage() {
   const [overview, setOverview] = useState<PortfolioOverview | null>(null);
   const [history, setHistory] = useState<PortfolioHistory | null>(null);
   const [selectedRange, setSelectedRange] = useState<string>("1m");
+  const [benchmark, setBenchmark] = useState<BenchmarkId>("none");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -128,6 +132,8 @@ export default function AnalyticsPage() {
                 history={history}
                 selectedRange={selectedRange}
                 onRangeChange={setSelectedRange}
+                benchmark={benchmark}
+                onBenchmarkChange={setBenchmark}
               />
               <TopMovers
                 gainers={overview.top_gainers}
@@ -241,23 +247,58 @@ function AllocationChart({
   );
 }
 
+const BENCHMARK_OPTIONS: BenchmarkId[] = ["none", "btc", "sp500"];
+const BENCHMARK_COLOR = "#f59e0b";
+
 function PerformanceChart({
   history,
   selectedRange,
   onRangeChange,
+  benchmark,
+  onBenchmarkChange,
 }: {
   history: PortfolioHistory | null;
   selectedRange: string;
   onRangeChange: (r: string) => void;
+  benchmark: BenchmarkId;
+  onBenchmarkChange: (b: BenchmarkId) => void;
 }) {
   const { t } = useLocale();
-  const chartData = (history?.data ?? []).map((p) => ({
-    date: new Date(p.timestamp).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    }),
-    value: p.value,
-  }));
+
+  const benchmarkRaw = useMemo(
+    () => getBenchmarkData(benchmark, selectedRange),
+    [benchmark, selectedRange],
+  );
+
+  const benchmarkLabel = getBenchmarkLabel(benchmark);
+
+  const chartData = useMemo(() => {
+    const portfolioPoints = history?.data ?? [];
+    if (portfolioPoints.length === 0) return [];
+
+    const hasBenchmark = benchmarkRaw.length > 0;
+    const benchStartVal = hasBenchmark ? benchmarkRaw[0].value : 1;
+    const portStartVal = portfolioPoints[0].value || 1;
+
+    return portfolioPoints.map((p, i) => {
+      const date = new Date(p.timestamp).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      });
+
+      const row: Record<string, string | number> = {
+        date,
+        value: p.value,
+      };
+
+      if (hasBenchmark && i < benchmarkRaw.length) {
+        row.benchmark =
+          (benchmarkRaw[i].value / benchStartVal) * portStartVal;
+      }
+
+      return row;
+    });
+  }, [history, benchmarkRaw]);
 
   return (
     <div className="mt-8 rounded-xl border bg-card p-5 shadow-sm">
@@ -282,6 +323,31 @@ function PerformanceChart({
           ))}
         </div>
       </div>
+
+      {/* Benchmark selector */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-muted-foreground">
+          {t("analytics.benchmark")}:
+        </span>
+        {BENCHMARK_OPTIONS.map((b) => (
+          <button
+            key={b}
+            onClick={() => onBenchmarkChange(b)}
+            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              benchmark === b
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                : "text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {b === "none"
+              ? t("analytics.benchmarkNone")
+              : b === "btc"
+                ? "BTC"
+                : "S&P 500"}
+          </button>
+        ))}
+      </div>
+
       {chartData.length > 0 ? (
         <div className="h-[220px] w-full sm:h-[300px] lg:h-[380px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -293,15 +359,37 @@ function PerformanceChart({
                 tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
               />
               <Tooltip
-                formatter={(v) => [`$${fmt(Number(v))}`, t("analytics.totalValue")]}
+                formatter={(v, name) => [
+                  `$${fmt(Number(v))}`,
+                  name === "benchmark" ? benchmarkLabel : t("analytics.totalValue"),
+                ]}
               />
+              {benchmark !== "none" && (
+                <Legend
+                  formatter={(val: string) =>
+                    val === "benchmark" ? benchmarkLabel : t("analytics.portfolio")
+                  }
+                />
+              )}
               <Line
                 type="monotone"
                 dataKey="value"
+                name="value"
                 stroke="#3b82f6"
                 strokeWidth={2}
                 dot={false}
               />
+              {benchmark !== "none" && (
+                <Line
+                  type="monotone"
+                  dataKey="benchmark"
+                  name="benchmark"
+                  stroke={BENCHMARK_COLOR}
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  dot={false}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
