@@ -41,6 +41,9 @@ const en = {
   "analytics.noData": "No portfolio data. Add transactions to see analytics.",
   "analytics.loading": "Loading analytics...",
   "analytics.noHistory": "No history data available.",
+  "analytics.benchmark": "Benchmark",
+  "analytics.benchmarkNone": "None",
+  "analytics.portfolio": "Portfolio",
 
   // Portfolio
   "portfolio.title": "Portfolio",
@@ -184,6 +187,9 @@ const fa: Record<keyof typeof en, string> = {
   "analytics.noData": "داده‌ای برای سبد دارایی وجود ندارد. تراکنش‌ها را اضافه کنید.",
   "analytics.loading": "بارگذاری تحلیل‌ها...",
   "analytics.noHistory": "داده تاریخچه‌ای موجود نیست.",
+  "analytics.benchmark": "معیار مقایسه",
+  "analytics.benchmarkNone": "بدون",
+  "analytics.portfolio": "سبد دارایی",
 
   // Portfolio
   "portfolio.title": "سبد دارایی",
