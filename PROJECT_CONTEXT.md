@@ -732,6 +732,15 @@ frontend/src/lib/benchmark-data.ts   # Mock benchmark data generator (BenchmarkI
 4. Always work on a feature branch; never commit to `main`.
 5. GitHub is the single source of truth.
 
+## Archived Branches (May 2026)
+
+The following branches contained incomplete experimental work and should not be continued:
+- archive/notifications-system-mvp
+- archive/price-alerts-module
+
+Phase 7 should start cleanly from:
+- feature/alerts-polish
+
 ---
 
 ## 7. Roadmap / Next Steps
