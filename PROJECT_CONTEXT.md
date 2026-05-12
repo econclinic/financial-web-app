@@ -704,11 +704,25 @@ frontend/src/components/shared/theme-toggle.tsx           # Sun/Moon toggle butt
 frontend/src/components/shared/language-toggle.tsx        # Globe toggle button (EN ↔ FA)
 frontend/src/components/shared/smart-summary-card.tsx     # Market insights card
 frontend/src/lib/i18n/translations.ts                     # EN + FA translation dictionaries
+frontend/src/lib/benchmark-data.ts                        # Mock benchmark data (BTC, S&P 500)
 ```
 
-### Phases 6–7 — Remaining (Not Yet Started)
-- **Phase 6 — Benchmark Comparison:** Add benchmark selector (None, BTC, S&P 500) to analytics chart.
-- **Phase 7 — Alerts Upgrade + UX Polish:** New alert rule types, toast notifications, skeleton loaders, empty states.
+### Phase 6 — Benchmark Comparison (PR #17)
+- Benchmark selector on the Portfolio Performance chart: **None** (default), **BTC**, **S&P 500**.
+- Amber-highlighted active state button; selector row sits between time range buttons and the chart.
+- Benchmark rendered as a **dashed amber line** (`#f59e0b`, `strokeDasharray="6 3"`) — visually distinct from the solid blue portfolio line.
+- **Normalization:** benchmark values are indexed to the portfolio's starting value so both lines share the same Y-axis scale, making relative performance directly comparable.
+- **Legend** auto-appears when a benchmark is selected ("Portfolio" vs benchmark name).
+- Mock data generated client-side via deterministic seeded PRNG (mulberry32, seeds 42/99) — BTC ~3% daily vol, S&P 500 ~0.8% daily vol. Replace `getBenchmarkData()` with a real API call when backend data is available; the chart component needs no changes.
+- 3 new i18n keys (EN + FA): `analytics.benchmark`, `analytics.benchmarkNone`, `analytics.portfolio`.
+
+**Key files:**
+```
+frontend/src/lib/benchmark-data.ts   # Mock benchmark data generator (BenchmarkId, getBenchmarkData, getBenchmarkLabel)
+```
+
+### Phase 7 — Remaining (Not Yet Started)
+- **Alerts Upgrade + UX Polish:** New alert rule types, toast notifications, skeleton loaders, empty states.
 
 ### For AI agents
 
@@ -738,5 +752,5 @@ frontend/src/lib/i18n/translations.ts                     # EN + FA translation 
 | 8c | UI Phase 3 — Responsive Layouts | Done | Mobile-first grids, hamburger menu, edge-to-edge tables. |
 | 8d | UI Phase 4 — i18n + RTL | Done | EN/FA translations, locale toggle, dynamic RTL, Tailwind directional variants. |
 | 8e | UI Phase 5 — Smart Summary Card | Done | Market insights card: avg change, best/worst performers, responsive layout. |
-| 8f | UI Phase 6 — Benchmark Comparison | In Progress | Benchmark selector (None/BTC/S&P 500) on analytics chart with mock data. |
+| 8f | UI Phase 6 — Benchmark Comparison | Done | Benchmark selector (None/BTC/S&P 500) on analytics chart, dashed amber line, normalized to portfolio scale, mock data via seeded PRNG. |
 | 8g | UI Phase 7 — Alerts Upgrade + UX Polish | Planned | New alert rule types, toast notifications, skeleton loaders, empty states. |
