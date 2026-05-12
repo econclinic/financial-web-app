@@ -136,7 +136,7 @@ export default function WatchlistPage() {
 
           {!loading && !error && items.length === 0 && (
             <div className="mt-8 rounded-xl border bg-muted/40 p-8 text-center text-muted-foreground">
-              <Eye className="mx-auto h-8 w-8 mb-2" />
+              <Eye className="mx-auto h-10 w-10 mb-3 opacity-50" />
               <p>{t("watchlist.empty")}</p>
               <p className="text-sm mt-1">{t("watchlist.emptyHint")}</p>
             </div>

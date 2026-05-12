@@ -40,14 +40,14 @@ def test_create_alert():
     token = _register("alert2@test.com")
     resp = client.post(
         "/api/alerts",
-        json={"symbol": "btc", "target_price": 100000, "direction": "above"},
+        json={"symbol": "btc", "target_price": 100000, "direction": "price_above"},
         headers=_auth(token),
     )
     assert resp.status_code == 201
     data = resp.json()
     assert data["symbol"] == "BTC"
     assert data["target_price"] == 100000
-    assert data["direction"] == "above"
+    assert data["direction"] == "price_above"
     assert data["is_triggered"] is False
     assert data["triggered_at"] is None
 
@@ -55,7 +55,7 @@ def test_create_alert():
 def test_duplicate_active_alert_returns_409():
     _reset_db()
     token = _register("alert3@test.com")
-    payload = {"symbol": "ETH", "target_price": 5000, "direction": "above"}
+    payload = {"symbol": "ETH", "target_price": 5000, "direction": "price_above"}
     client.post("/api/alerts", json=payload, headers=_auth(token))
     resp = client.post("/api/alerts", json=payload, headers=_auth(token))
     assert resp.status_code == 409
@@ -67,7 +67,7 @@ def test_delete_alert():
     token = _register("alert4@test.com")
     create_resp = client.post(
         "/api/alerts",
-        json={"symbol": "BTC", "target_price": 50000, "direction": "below"},
+        json={"symbol": "BTC", "target_price": 50000, "direction": "price_below"},
         headers=_auth(token),
     )
     alert_id = create_resp.json()["id"]
@@ -91,7 +91,7 @@ def test_unauthenticated_requests_rejected():
     resp_get = client.get("/api/alerts")
     resp_post = client.post(
         "/api/alerts",
-        json={"symbol": "BTC", "target_price": 100000, "direction": "above"},
+        json={"symbol": "BTC", "target_price": 100000, "direction": "price_above"},
     )
     resp_del = client.delete("/api/alerts/1")
     assert resp_get.status_code == 403
@@ -106,12 +106,12 @@ def test_user_isolation():
 
     resp_a = client.post(
         "/api/alerts",
-        json={"symbol": "BTC", "target_price": 100000, "direction": "above"},
+        json={"symbol": "BTC", "target_price": 100000, "direction": "price_above"},
         headers=_auth(token_a),
     )
     client.post(
         "/api/alerts",
-        json={"symbol": "ETH", "target_price": 1000, "direction": "below"},
+        json={"symbol": "ETH", "target_price": 1000, "direction": "price_below"},
         headers=_auth(token_b),
     )
 
@@ -130,12 +130,12 @@ def test_user_isolation():
 
 
 def test_trigger_logic_above():
-    """Alert with direction=above triggers when price >= target."""
+    """Alert with direction=price_above triggers when price >= target."""
     _reset_db()
     token = _register("trigger1@test.com")
     client.post(
         "/api/alerts",
-        json={"symbol": "BTC", "target_price": 70000, "direction": "above"},
+        json={"symbol": "BTC", "target_price": 70000, "direction": "price_above"},
         headers=_auth(token),
     )
 
@@ -152,12 +152,12 @@ def test_trigger_logic_above():
 
 
 def test_trigger_logic_below():
-    """Alert with direction=below triggers when price <= target."""
+    """Alert with direction=price_below triggers when price <= target."""
     _reset_db()
     token = _register("trigger2@test.com")
     client.post(
         "/api/alerts",
-        json={"symbol": "ETH", "target_price": 3000, "direction": "below"},
+        json={"symbol": "ETH", "target_price": 3000, "direction": "price_below"},
         headers=_auth(token),
     )
 
@@ -178,7 +178,7 @@ def test_trigger_does_not_fire_when_condition_not_met():
     token = _register("trigger3@test.com")
     client.post(
         "/api/alerts",
-        json={"symbol": "BTC", "target_price": 100000, "direction": "above"},
+        json={"symbol": "BTC", "target_price": 100000, "direction": "price_above"},
         headers=_auth(token),
     )
 
@@ -199,7 +199,7 @@ def test_triggered_alert_does_not_fire_again():
     token = _register("trigger4@test.com")
     client.post(
         "/api/alerts",
-        json={"symbol": "BTC", "target_price": 70000, "direction": "above"},
+        json={"symbol": "BTC", "target_price": 70000, "direction": "price_above"},
         headers=_auth(token),
     )
 
@@ -210,3 +210,45 @@ def test_triggered_alert_does_not_fire_again():
         assert triggered_again == 0
     finally:
         db.close()
+
+
+def test_daily_change_above_trigger():
+    """Alert with direction=daily_change_above triggers when 24h change >= target."""
+    _reset_db()
+    token = _register("dc_above@test.com")
+    client.post(
+        "/api/alerts",
+        json={"symbol": "BTC", "target_price": 5, "direction": "daily_change_above"},
+        headers=_auth(token),
+    )
+
+    db = SessionLocal()
+    try:
+        triggered = evaluate_alerts(db, {"BTC": 70000.0}, {"BTC": 6.5})
+        assert triggered == 1
+    finally:
+        db.close()
+
+    alerts = client.get("/api/alerts", headers=_auth(token)).json()
+    assert alerts[0]["is_triggered"] is True
+
+
+def test_daily_change_below_trigger():
+    """Alert with direction=daily_change_below triggers when 24h change <= target."""
+    _reset_db()
+    token = _register("dc_below@test.com")
+    client.post(
+        "/api/alerts",
+        json={"symbol": "ETH", "target_price": -3, "direction": "daily_change_below"},
+        headers=_auth(token),
+    )
+
+    db = SessionLocal()
+    try:
+        triggered = evaluate_alerts(db, {"ETH": 3000.0}, {"ETH": -4.2})
+        assert triggered == 1
+    finally:
+        db.close()
+
+    alerts = client.get("/api/alerts", headers=_auth(token)).json()
+    assert alerts[0]["is_triggered"] is True

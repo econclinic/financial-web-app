@@ -185,7 +185,7 @@ def test_alert_trigger_creates_notification():
     token = _register("trigger_notif@test.com")
     client.post(
         "/api/alerts",
-        json={"symbol": "BTC", "target_price": 70000, "direction": "above"},
+        json={"symbol": "BTC", "target_price": 70000, "direction": "price_above"},
         headers=_auth(token),
     )
 
@@ -210,7 +210,7 @@ def test_alert_trigger_below_creates_notification():
     token = _register("trigger_below@test.com")
     client.post(
         "/api/alerts",
-        json={"symbol": "ETH", "target_price": 3000, "direction": "below"},
+        json={"symbol": "ETH", "target_price": 3000, "direction": "price_below"},
         headers=_auth(token),
     )
 
@@ -230,7 +230,7 @@ def test_no_duplicate_notification_on_repeated_trigger():
     token = _register("dup_notif@test.com")
     client.post(
         "/api/alerts",
-        json={"symbol": "BTC", "target_price": 70000, "direction": "above"},
+        json={"symbol": "BTC", "target_price": 70000, "direction": "price_above"},
         headers=_auth(token),
     )
 

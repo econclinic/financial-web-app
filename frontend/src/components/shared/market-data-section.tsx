@@ -51,8 +51,21 @@ export function MarketDataSection({ onQuotesLoaded }: MarketDataSectionProps) {
 
   if (loading) {
     return (
-      <div className="mt-8 rounded-xl border bg-card p-6 shadow-sm">
-        <p className="text-muted-foreground">{t("dashboard.loadingMarket")}</p>
+      <div className="mt-6 space-y-4 sm:mt-8 sm:space-y-6">
+        <div className="h-6 w-32 animate-pulse rounded bg-muted" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card p-6 shadow-sm">
+              <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+              <div className="mt-3 h-7 w-28 animate-pulse rounded bg-muted" />
+              <div className="mt-2 h-4 w-20 animate-pulse rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <div className="h-5 w-48 animate-pulse rounded bg-muted" />
+          <div className="mt-4 h-48 animate-pulse rounded bg-muted" />
+        </div>
       </div>
     );
   }

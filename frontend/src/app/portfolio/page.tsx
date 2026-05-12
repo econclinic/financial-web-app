@@ -6,7 +6,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   DollarSign,
-  Loader2,
   Plus,
   Radio,
   TrendingUp,
@@ -90,10 +89,7 @@ export default function PortfolioPage() {
           </div>
 
           {loading && (
-            <div className="mt-8 flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {t("portfolio.loading")}
-            </div>
+            <PortfolioSkeleton />
           )}
 
           {error && (
@@ -118,10 +114,10 @@ export default function PortfolioPage() {
                 </>
               )}
               {summary.positions.length === 0 && (
-                <div className="mt-8 rounded-xl border bg-card p-8 text-center shadow-sm">
-                  <p className="text-muted-foreground">
-                    {t("portfolio.noPositions")}
-                  </p>
+                <div className="mt-8 rounded-xl border bg-muted/40 p-8 text-center text-muted-foreground">
+                  <Wallet className="mx-auto h-10 w-10 mb-3 opacity-50" />
+                  <p className="font-medium">{t("portfolio.emptyTitle")}</p>
+                  <p className="text-sm mt-1">{t("portfolio.emptyHint")}</p>
                 </div>
               )}
               {transactions.length > 0 && (
@@ -385,5 +381,37 @@ function TransactionHistory({
         </table>
       </div>
     </div>
+  );
+}
+
+function PortfolioSkeleton() {
+  return (
+    <>
+      <div className="mt-6 grid gap-3 grid-cols-2 lg:grid-cols-4 sm:gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
+              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+            </div>
+            <div className="mt-3 h-7 w-24 animate-pulse rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-6 sm:mt-8">
+        <div className="h-5 w-24 animate-pulse rounded bg-muted mb-3" />
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 py-3 border-b last:border-0">
+              <div className="h-4 w-12 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+              <div className="h-4 flex-1 animate-pulse rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

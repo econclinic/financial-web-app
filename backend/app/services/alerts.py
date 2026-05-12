@@ -53,11 +53,44 @@ def delete_alert(db: Session, user_id: int, alert_id: int) -> bool:
     return True
 
 
-def evaluate_alerts(db: Session, prices: dict[str, float]) -> int:
-    """Check all active alerts against current prices.
+def _check_condition(
+    direction: str, price: float, change_24h: float, target: float
+) -> bool:
+    if direction == "price_above" or direction == "above":
+        return price >= target
+    if direction == "price_below" or direction == "below":
+        return price <= target
+    if direction == "daily_change_above":
+        return change_24h >= target
+    if direction == "daily_change_below":
+        return change_24h <= target
+    return False
+
+
+def _notification_message(direction: str, symbol: str, target: float) -> str:
+    if direction in ("price_above", "above"):
+        return f"{symbol} crossed above {target:g}"
+    if direction in ("price_below", "below"):
+        return f"{symbol} dropped below {target:g}"
+    if direction == "daily_change_above":
+        return f"{symbol} daily change rose above {target:g}%"
+    if direction == "daily_change_below":
+        return f"{symbol} daily change dropped below {target:g}%"
+    return f"{symbol} alert triggered at {target:g}"
+
+
+def evaluate_alerts(
+    db: Session,
+    prices: dict[str, float],
+    changes: dict[str, float] | None = None,
+) -> int:
+    """Check all active alerts against current prices and 24h changes.
 
     Returns the number of newly triggered alerts.
     """
+    if changes is None:
+        changes = {}
+
     active = db.query(Alert).filter(Alert.is_triggered.is_(False)).all()
     triggered_count = 0
     new_notifications: list[Notification] = []
@@ -67,9 +100,10 @@ def evaluate_alerts(db: Session, prices: dict[str, float]) -> int:
         if price is None:
             continue
 
-        should_trigger = (
-            (alert.direction == "above" and price >= alert.target_price)
-            or (alert.direction == "below" and price <= alert.target_price)
+        change_24h = changes.get(alert.symbol, 0.0)
+
+        should_trigger = _check_condition(
+            alert.direction, price, change_24h, alert.target_price
         )
 
         if should_trigger:
@@ -77,7 +111,6 @@ def evaluate_alerts(db: Session, prices: dict[str, float]) -> int:
             alert.triggered_at = datetime.now(timezone.utc)
             triggered_count += 1
 
-            verb = "crossed above" if alert.direction == "above" else "dropped below"
             existing = (
                 db.query(Notification)
                 .filter(
@@ -92,7 +125,9 @@ def evaluate_alerts(db: Session, prices: dict[str, float]) -> int:
                         user_id=alert.user_id,
                         type="price_alert_triggered",
                         title="Alert Triggered",
-                        message=f"{alert.symbol} {verb} {alert.target_price:g}",
+                        message=_notification_message(
+                            alert.direction, alert.symbol, alert.target_price
+                        ),
                         related_alert_id=alert.id,
                     )
                 )

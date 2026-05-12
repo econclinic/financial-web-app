@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Vazirmatn, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { LocaleProvider } from "@/hooks/use-locale";
@@ -49,6 +50,7 @@ export default function RootLayout({
         <ThemeProvider>
           <LocaleProvider>
             <AuthProvider>{children}</AuthProvider>
+            <Toaster position="bottom-right" duration={3000} />
           </LocaleProvider>
         </ThemeProvider>
       </body>

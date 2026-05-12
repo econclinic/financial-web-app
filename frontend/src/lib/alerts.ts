@@ -1,11 +1,13 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+export type AlertDirection = "price_above" | "price_below" | "daily_change_above" | "daily_change_below";
+
 export interface Alert {
   id: number;
   user_id: number;
   symbol: string;
   target_price: number;
-  direction: string;
+  direction: AlertDirection;
   is_triggered: boolean;
   created_at: string;
   triggered_at: string | null;
@@ -30,7 +32,7 @@ export async function createAlert(
   token: string,
   symbol: string,
   targetPrice: number,
-  direction: string,
+  direction: AlertDirection,
 ): Promise<Alert> {
   const res = await fetch(`${API_BASE}/api/alerts`, {
     method: "POST",
