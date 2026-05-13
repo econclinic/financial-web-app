@@ -92,6 +92,16 @@ const en = {
   "alerts.above": "Above",
   "alerts.below": "Below",
   "alerts.targetPrice": "Target Price ($)",
+  "alerts.targetChange": "Target Change (%)",
+  "alerts.pricePlaceholder": "e.g. 70000",
+  "alerts.changePlaceholder": "e.g. 5",
+  "alerts.ruleType": "Rule Type",
+  "alerts.price_above": "Price Above",
+  "alerts.price_below": "Price Below",
+  "alerts.daily_change_above": "Daily Change Above",
+  "alerts.daily_change_below": "Daily Change Below",
+  "alerts.priceAlert": "Price",
+  "alerts.changeAlert": "Change",
   "alerts.create": "Create Alert",
   "alerts.delete": "Delete",
   "alerts.condition": "Condition",
@@ -145,6 +155,20 @@ const en = {
   "summary.combined": "combined",
   "summary.bestPerformer": "Best Performer",
   "summary.worstPerformer": "Worst Performer",
+
+  // Portfolio Empty State
+  "portfolio.emptyTitle": "No positions yet",
+  "portfolio.emptyHint": "Add your first transaction to get started.",
+
+  // Analytics Empty State
+  "analytics.emptyTitle": "No analytics data",
+  "analytics.emptyHint": "Add portfolio transactions to see analytics.",
+
+  // Toast
+  "toast.alertCreated": "Alert created successfully",
+  "toast.alertDeleted": "Alert deleted",
+  "toast.themeDark": "Switched to dark mode",
+  "toast.themeLight": "Switched to light mode",
 
   // Common
   "common.loading": "Loading...",
@@ -238,6 +262,16 @@ const fa: Record<keyof typeof en, string> = {
   "alerts.above": "بالاتر از",
   "alerts.below": "پایین‌تر از",
   "alerts.targetPrice": "قیمت هدف ($)",
+  "alerts.targetChange": "تغییر هدف (%)",
+  "alerts.pricePlaceholder": "مثلاً ۷۰۰۰۰",
+  "alerts.changePlaceholder": "مثلاً ۵",
+  "alerts.ruleType": "نوع قانون",
+  "alerts.price_above": "قیمت بالاتر از",
+  "alerts.price_below": "قیمت پایین‌تر از",
+  "alerts.daily_change_above": "تغییر روزانه بالاتر از",
+  "alerts.daily_change_below": "تغییر روزانه پایین‌تر از",
+  "alerts.priceAlert": "قیمت",
+  "alerts.changeAlert": "تغییر",
   "alerts.create": "ایجاد هشدار",
   "alerts.delete": "حذف",
   "alerts.condition": "شرط",
@@ -291,6 +325,20 @@ const fa: Record<keyof typeof en, string> = {
   "summary.combined": "مجموع",
   "summary.bestPerformer": "بهترین عملکرد",
   "summary.worstPerformer": "ضعیف‌ترین عملکرد",
+
+  // Portfolio Empty State
+  "portfolio.emptyTitle": "هنوز موقعیتی ندارید",
+  "portfolio.emptyHint": "اولین تراکنش خود را اضافه کنید.",
+
+  // Analytics Empty State
+  "analytics.emptyTitle": "داده تحلیلی موجود نیست",
+  "analytics.emptyHint": "تراکنش‌ها را اضافه کنید تا تحلیل‌ها نمایش داده شوند.",
+
+  // Toast
+  "toast.alertCreated": "هشدار با موفقیت ایجاد شد",
+  "toast.alertDeleted": "هشدار حذف شد",
+  "toast.themeDark": "حالت تاریک فعال شد",
+  "toast.themeLight": "حالت روشن فعال شد",
 
   // Common
   "common.loading": "بارگذاری...",

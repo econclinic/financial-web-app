@@ -22,7 +22,7 @@ class Alert(Base):
     user_id = Column(Integer, nullable=False, index=True)
     symbol = Column(String, nullable=False)
     target_price = Column(Float, nullable=False)
-    direction = Column(String, nullable=False)  # "above" or "below"
+    direction = Column(String, nullable=False)  # price_above, price_below, daily_change_above, daily_change_below
     is_triggered = Column(Boolean, nullable=False, default=False)
     created_at = Column(
         DateTime(timezone=True),

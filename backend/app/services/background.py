@@ -9,7 +9,7 @@ import logging
 
 from app.core.database import SessionLocal
 from app.services.alerts import evaluate_alerts
-from app.services.market_data_service import get_current_prices_map
+from app.services.market_data_service import get_live_prices
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +17,13 @@ CHECK_INTERVAL_SECONDS = 60
 
 
 def _check_alerts() -> None:
-    """Evaluate all active alerts against current market prices."""
+    """Evaluate all active alerts against current market prices and 24h changes."""
     db = SessionLocal()
     try:
-        prices = get_current_prices_map()
-        triggered = evaluate_alerts(db, prices)
+        live_data = get_live_prices()
+        prices = {sym: info["price"] for sym, info in live_data.items()}
+        changes = {sym: info.get("change_24h", 0.0) for sym, info in live_data.items()}
+        triggered = evaluate_alerts(db, prices, changes)
         if triggered > 0:
             logger.info("Triggered %d alert(s)", triggered)
     except Exception:

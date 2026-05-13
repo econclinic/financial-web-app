@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   BarChart3,
   DollarSign,
-  Loader2,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -103,10 +102,7 @@ export default function AnalyticsPage() {
           <h2 className="text-2xl font-bold tracking-tight">{t("analytics.title")}</h2>
 
           {loading && (
-            <div className="mt-8 flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {t("analytics.loading")}
-            </div>
+            <AnalyticsSkeleton />
           )}
 
           {error && (
@@ -143,10 +139,10 @@ export default function AnalyticsPage() {
           )}
 
           {!loading && !error && overview && overview.total_value === 0 && (
-            <div className="mt-8 rounded-xl border bg-card p-8 text-center shadow-sm">
-              <p className="text-muted-foreground">
-                {t("analytics.noData")}
-              </p>
+            <div className="mt-8 rounded-xl border bg-muted/40 p-8 text-center text-muted-foreground">
+              <BarChart3 className="mx-auto h-10 w-10 mb-3 opacity-50" />
+              <p className="font-medium">{t("analytics.emptyTitle")}</p>
+              <p className="text-sm mt-1">{t("analytics.emptyHint")}</p>
             </div>
           )}
         </div>
@@ -468,5 +464,35 @@ function MoverList({
         ))}
       </div>
     </div>
+  );
+}
+
+function AnalyticsSkeleton() {
+  return (
+    <>
+      <div className="mt-6 grid gap-3 grid-cols-2 lg:grid-cols-4 sm:gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
+              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+            </div>
+            <div className="mt-3 h-7 w-24 animate-pulse rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-6 grid gap-4 sm:mt-8 sm:gap-8 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+            <div className="h-5 w-36 animate-pulse rounded bg-muted mb-4" />
+            <div className="h-48 animate-pulse rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-6 sm:mt-8 rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+        <div className="h-5 w-40 animate-pulse rounded bg-muted mb-4" />
+        <div className="h-64 animate-pulse rounded bg-muted" />
+      </div>
+    </>
   );
 }
