@@ -9,7 +9,7 @@
 **AI Finance WebApp** is a modular financial web application that provides a dashboard for viewing market data, managing authentication, and tracking portfolios with real-time prices.
 
 - **Typical user:** A retail investor or finance enthusiast who wants a single dashboard to monitor prices, manage a watchlist, and analyse market trends.
-- **Current maturity:** Mid-stage MVP. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, a portfolio module with analytics dashboard, a watchlist, price alerts with background trigger worker and in-app notifications, dark/light theme, bilingual i18n (EN/FA) with full RTL support, responsive mobile-first layouts, and a smart market insights card. There is no real brokerage integration or production database yet.
+- **Current maturity:** Completed MVP. The initial roadmap (Phases 1–7) is finished. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, a portfolio module with analytics dashboard, a watchlist, four alert rule types (price above/below, daily change above/below) with background trigger worker and in-app notifications, toast notifications, skeleton loaders, meaningful empty states, dark/light theme, bilingual i18n (EN/FA) with full RTL support, responsive mobile-first layouts, and a smart market insights card. There is no real brokerage integration or production database yet. A new roadmap with additional phases and refinements will be defined separately.
 
 ---
 
@@ -721,8 +721,49 @@ frontend/src/lib/benchmark-data.ts                        # Mock benchmark data 
 frontend/src/lib/benchmark-data.ts   # Mock benchmark data generator (BenchmarkId, getBenchmarkData, getBenchmarkLabel)
 ```
 
-### Phase 7 — Remaining (Not Yet Started)
-- **Alerts Upgrade + UX Polish:** New alert rule types, toast notifications, skeleton loaders, empty states.
+### Phase 7 — Alerts Upgrade + UX Polish (Done)
+
+**Alert Rule Types:**
+- Extended the alert system from simple above/below triggers to four rule types: `price_above`, `price_below`, `daily_change_above`, `daily_change_below`.
+- Backend `evaluate_alerts()` now accepts an optional `changes` dict for 24h percentage data alongside prices.
+- Background worker passes both price and 24h change data from `get_live_prices()`.
+- Schema validation: price alerts require `target_price > 0`; daily change alerts allow negative targets (e.g. alert when daily change drops below -3%).
+- Old `"above"`/`"below"` direction values are still evaluated correctly for backward compatibility.
+
+**Toast Notifications:**
+- Added `sonner` (via shadcn/ui) for non-intrusive, auto-dismissing toast feedback.
+- Toasts shown on: alert created, alert deleted, theme changed, language changed.
+- `<Toaster>` component mounted in root layout, positioned bottom-right, 3s auto-dismiss.
+
+**Skeleton Loaders:**
+- Dashboard: skeleton cards + chart placeholder during market data loading.
+- Portfolio: skeleton stat cards + table rows during portfolio loading.
+- Analytics: skeleton overview cards + chart placeholders during data loading.
+- All skeletons use `animate-pulse` with `bg-muted` to match the existing design system.
+
+**Empty States:**
+- Consistent design across Portfolio, Watchlist, Alerts, and Analytics pages.
+- Each shows a relevant Lucide icon (50% opacity), a friendly title, and an actionable hint.
+- RTL-compatible, responsive.
+
+**i18n:**
+- 15+ new EN/FA translation keys for rule types, placeholders, empty states, and toast messages.
+
+**Key files:**
+
+```
+backend/app/services/alerts.py          # _check_condition(), _notification_message(), updated evaluate_alerts()
+backend/app/services/background.py      # Passes change_24h data to evaluate_alerts
+backend/app/schemas/alert.py            # Extended direction validation, model_validator for target_price
+frontend/src/components/ui/sonner.tsx    # Toaster component (sonner + project theme hook)
+frontend/src/app/alerts/page.tsx         # Rule type selector, card layout on mobile, table on desktop
+frontend/src/lib/alerts.ts              # AlertDirection type, updated createAlert()
+frontend/src/lib/i18n/translations.ts   # New translation keys (EN + FA)
+```
+
+---
+
+> **MVP Roadmap Complete.** Phases 1–7 represent the initial MVP roadmap. This repository state marks the end of the initial roadmap. A new roadmap with additional phases and refinements will be defined separately.
 
 ### For AI agents
 
@@ -738,8 +779,8 @@ The following branches contained incomplete experimental work and should not be 
 - archive/notifications-system-mvp
 - archive/price-alerts-module
 
-Phase 7 should start cleanly from:
-- feature/alerts-polish
+Phase 7 was implemented on:
+- feature/alerts-polish (merged via PR #18)
 
 ---
 
@@ -762,4 +803,4 @@ Phase 7 should start cleanly from:
 | 8d | UI Phase 4 — i18n + RTL | Done | EN/FA translations, locale toggle, dynamic RTL, Tailwind directional variants. |
 | 8e | UI Phase 5 — Smart Summary Card | Done | Market insights card: avg change, best/worst performers, responsive layout. |
 | 8f | UI Phase 6 — Benchmark Comparison | Done | Benchmark selector (None/BTC/S&P 500) on analytics chart, dashed amber line, normalized to portfolio scale, mock data via seeded PRNG. |
-| 8g | UI Phase 7 — Alerts Upgrade + UX Polish | Planned | New alert rule types, toast notifications, skeleton loaders, empty states. |
+| 8g | UI Phase 7 — Alerts Upgrade + UX Polish | Done | Four alert rule types (price_above/below, daily_change_above/below), toast notifications (sonner), skeleton loaders (Dashboard/Portfolio/Analytics), empty states, mobile card layout for alerts. |
