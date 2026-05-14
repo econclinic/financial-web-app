@@ -19,7 +19,6 @@ from fastapi import HTTPException, status
 
 from app.providers.cache import ProviderCache
 from app.providers.coingecko import SYMBOL_TO_COINGECKO_ID, CoinGeckoProvider
-from app.providers.mock import MockMarketDataProvider
 from app.providers.types import NormalizedQuote
 
 logger = logging.getLogger(__name__)
@@ -27,9 +26,8 @@ logger = logging.getLogger(__name__)
 # Backward-compatible re-export: other modules import this symbol map
 SYMBOL_TO_COINGECKO: dict[str, str] = dict(SYMBOL_TO_COINGECKO_ID)
 
-# Provider instances (singleton per process)
+# Provider instance (singleton per process)
 _crypto_provider = CoinGeckoProvider()
-_mock_provider = MockMarketDataProvider()
 
 # Unified cache for quotes (replaces the old module-level dict)
 _quotes_cache = ProviderCache(default_ttl=60.0)
@@ -41,8 +39,10 @@ def _quote_to_dict(q: NormalizedQuote) -> dict[str, Any]:
     """Convert a NormalizedQuote to the legacy dict format.
 
     Existing consumers expect: {"price": float, "change_24h": float}
+    The "source" field is included so responses can be identified as
+    real provider data vs mock/degraded data.
     """
-    return {"price": q.price, "change_24h": q.change_24h_pct}
+    return {"price": q.price, "change_24h": q.change_24h_pct, "source": q.source}
 
 
 def get_live_prices(symbols: list[str] | None = None) -> dict[str, dict[str, Any]]:
@@ -77,19 +77,16 @@ def get_live_prices(symbols: list[str] | None = None) -> dict[str, dict[str, Any
             for q in quotes:
                 result[q.symbol] = _quote_to_dict(q)
     except Exception:
-        logger.warning("CoinGecko provider failed, falling back to cache/mock")
-        # Try stale cache
+        logger.warning("CoinGecko provider failed, falling back to stale cache")
+        # Try stale cache — real data that's expired is still preferable
         stale = _quotes_cache.get_stale(cache_key)
         if stale:
             return {s: stale[s] for s in valid_symbols if s in stale}
 
-        # Last resort: mock provider
-        try:
-            mock_quotes = _mock_provider.get_quotes(crypto_symbols)
-            for q in mock_quotes:
-                result[q.symbol] = _quote_to_dict(q)
-        except Exception:
-            pass
+        # Do NOT fall back to mock for crypto symbols — mock data
+        # must never silently appear as real provider data for symbols
+        # that have a real provider configured.
+        logger.warning("No cached crypto data available; will return 503")
 
     if result:
         # Update cache with fresh data
