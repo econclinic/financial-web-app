@@ -96,14 +96,15 @@ Frontend (Next.js)
 
 ```
 backend/app/
-├── providers/                    # NEW — provider adapter layer
+├── providers/                    # Provider adapter layer
 │   ├── __init__.py
 │   ├── base.py                   # Protocol/ABC definitions
 │   ├── types.py                  # Internal data classes (normalized)
 │   ├── cache.py                  # Caching utilities
-│   ├── coingecko.py              # CoinGecko adapter
-│   ├── finnhub.py                # Finnhub adapter
-│   ├── fred.py                   # FRED adapter
+│   ├── registry.py               # Symbol → provider routing
+│   ├── coingecko.py              # CoinGecko adapter (crypto)
+│   ├── finnhub.py                # Finnhub adapter (US stocks)
+│   ├── fred.py                   # FRED adapter (future)
 │   ├── mock.py                   # Mock data adapter (dev/fallback)
 │   └── marketaux.py              # News adapter (future)
 ├── services/
@@ -780,6 +781,99 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 | **G — International** | Twelve Data, multi-provider | Phase A+B | 1+ PR (future) |
 
 Phases A–C can be delivered as focused, reviewable PRs. Phases D–E harden the system. Phases F–G extend coverage as the product grows.
+
+---
+
+## Implemented: Multi-Provider System (Phase B)
+
+> This section documents the **implemented** provider architecture as of Phase B.
+> It reflects the current codebase, not future speculative design.
+
+### Provider Architecture
+
+The provider abstraction layer is fully operational with multiple real data sources:
+
+```
+Frontend (Next.js)
+    │
+    │  GET /api/market-data/latest
+    │  GET /api/market-data/history/{symbol}
+    │  GET /api/market/prices
+    ▼
+FastAPI API Layer
+    │
+    ▼
+Service Layer (market_data_service.py, market_data.py)
+    │  Consumes only NormalizedQuote / NormalizedPriceHistory
+    │  Provider-agnostic — never parses raw API payloads
+    ▼
+Provider Registry (providers/registry.py)
+    │  Routes symbols to the correct provider adapter
+    │
+    ├── CoinGecko ──► BTC, ETH (crypto)
+    ├── Finnhub   ──► AAPL, MSFT, GOOGL, ... (US stocks)
+    └── Mock      ──► Unsupported/demo symbols
+```
+
+### Provider Ownership
+
+| Provider | Asset Class | Symbols | API |
+|---|---|---|---|
+| **CoinGecko** | Cryptocurrency | BTC, ETH | `/simple/price`, `/coins/{id}/market_chart` |
+| **Finnhub** | US Stocks | AAPL, MSFT, GOOGL, AMZN, TSLA, META, NVDA | `/quote`, `/stock/candle` |
+| **Mock** | Demo/Unsupported | Any symbol not covered by real providers | Deterministic PRNG (seed=42) |
+
+### Provider Registry
+
+The registry (`providers/registry.py`) is intentionally simple:
+
+- **No plugin system.** No dynamic loading. No dependency injection.
+- Routing is a linear check: first provider that `supports_symbol(sym)` wins.
+- Check order: CoinGecko → Finnhub → Mock (fallback).
+- `get_providers_for_symbols()` groups symbols by provider for batched API calls.
+- `has_real_provider()` returns whether a symbol has a non-mock provider.
+
+### Normalized Data Contracts
+
+All providers produce the same internal types defined in `providers/types.py`:
+
+- `NormalizedQuote` — symbol, name, price, change_24h, change_24h_pct, volume_24h, market_cap, **source**, timestamp
+- `NormalizedPriceHistory` — symbol, name, interval, points (list of `NormalizedPricePoint`), **source**
+
+**Why services only consume normalized objects:**
+- Adding/replacing a provider never requires changes to service or API layers.
+- The frontend schema is decoupled from any external API format.
+- Source attribution is always available via the `source` field.
+
+### Fallback Philosophy
+
+**Real-provider symbols must never silently fall back to mock market prices.**
+
+| Scenario | Behavior |
+|---|---|
+| Provider succeeds | Return real data (`source: "coingecko"` or `source: "finnhub"`) |
+| Provider fails, stale cache exists | Return stale cached data (was real at some point) |
+| Provider fails, no cache | Return HTTP 503 — **never mock** |
+| Symbol has no real provider | Return mock data (`source: "mock"`) — explicit, not a fallback |
+
+This prevents synthetic data from silently appearing as real market prices.
+
+### Source Attribution
+
+Every quote response includes a `source` field:
+
+```json
+{
+  "BTC": {"price": 67500.0, "change_24h": 1.23, "source": "coingecko"},
+  "AAPL": {"price": 190.50, "change_24h": 0.85, "source": "finnhub"},
+  "XYZ": {"price": 42.00, "change_24h": 0.10, "source": "mock"}
+}
+```
+
+Consumers can use this field to:
+- Display data freshness indicators in the UI
+- Filter out mock data in production dashboards
+- Log/monitor which providers are active
 
 ---
 

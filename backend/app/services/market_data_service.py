@@ -1,8 +1,9 @@
 """Market data service layer.
 
-Orchestrates provider adapters and caching. Selects the appropriate
-provider for each symbol, handles fallback to cached/stale data,
-and returns data in the legacy dict format expected by existing consumers.
+Orchestrates provider adapters via the provider registry and caching.
+The registry routes each symbol to the correct provider. The service
+handles fallback to cached/stale data and returns data in the legacy
+dict format expected by existing consumers.
 
 This module preserves the existing public interface:
 - get_live_prices(symbols) -> dict[str, dict[str, Any]]
@@ -18,7 +19,8 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from app.providers.cache import ProviderCache
-from app.providers.coingecko import SYMBOL_TO_COINGECKO_ID, CoinGeckoProvider
+from app.providers.coingecko import SYMBOL_TO_COINGECKO_ID
+from app.providers.registry import get_providers_for_symbols
 from app.providers.types import NormalizedQuote
 
 logger = logging.getLogger(__name__)
@@ -26,10 +28,10 @@ logger = logging.getLogger(__name__)
 # Backward-compatible re-export: other modules import this symbol map
 SYMBOL_TO_COINGECKO: dict[str, str] = dict(SYMBOL_TO_COINGECKO_ID)
 
-# Provider instance (singleton per process)
-_crypto_provider = CoinGeckoProvider()
+# All symbols the service layer tracks
+ALL_SYMBOLS: list[str] = ["BTC", "ETH", "AAPL"]
 
-# Unified cache for quotes (replaces the old module-level dict)
+# Unified cache for quotes
 _quotes_cache = ProviderCache(default_ttl=60.0)
 
 CACHE_KEY_PREFIX = "quotes:"
@@ -48,15 +50,15 @@ def _quote_to_dict(q: NormalizedQuote) -> dict[str, Any]:
 def get_live_prices(symbols: list[str] | None = None) -> dict[str, dict[str, Any]]:
     """Return live prices for requested symbols.
 
-    Uses provider adapters with 60-second caching. Falls back to stale
-    cache or mock data on provider failure; raises 503 if nothing is
-    available.
+    Uses the provider registry to route each symbol to the correct
+    provider. Falls back to stale cache on provider failure. Symbols
+    with a real provider configured never fall back to mock data.
 
     Returns the same dict format as before:
-    {"BTC": {"price": 67500.0, "change_24h": 1.23}, ...}
+    {"BTC": {"price": 67500.0, "change_24h": 1.23, "source": "coingecko"}, ...}
     """
     if symbols is None:
-        symbols = list(SYMBOL_TO_COINGECKO.keys())
+        symbols = list(ALL_SYMBOLS)
 
     valid_symbols = [s.upper() for s in symbols if s.strip()]
 
@@ -66,31 +68,34 @@ def get_live_prices(symbols: list[str] | None = None) -> dict[str, dict[str, Any
     if cached is not None:
         return {s: cached[s] for s in valid_symbols if s in cached}
 
-    # Separate symbols by provider
-    crypto_symbols = [s for s in valid_symbols if _crypto_provider.supports_symbol(s)]
+    # Group symbols by provider via registry
+    provider_groups = get_providers_for_symbols(valid_symbols)
 
-    # Fetch from CoinGecko provider
     result: dict[str, dict[str, Any]] = {}
-    try:
-        if crypto_symbols:
-            quotes = _crypto_provider.get_quotes(crypto_symbols)
+
+    for provider, syms in provider_groups.items():
+        try:
+            quotes = provider.get_quotes(syms)
             for q in quotes:
                 result[q.symbol] = _quote_to_dict(q)
-    except Exception:
-        logger.warning("CoinGecko provider failed, falling back to stale cache")
-        # Try stale cache — real data that's expired is still preferable
-        stale = _quotes_cache.get_stale(cache_key)
-        if stale:
-            return {s: stale[s] for s in valid_symbols if s in stale}
-
-        # Do NOT fall back to mock for crypto symbols — mock data
-        # must never silently appear as real provider data for symbols
-        # that have a real provider configured.
-        logger.warning("No cached crypto data available; will return 503")
+        except Exception:
+            logger.warning(
+                "%s provider failed for symbols: %s", provider.name, syms
+            )
 
     if result:
-        # Update cache with fresh data
         _quotes_cache.set(cache_key, result)
+
+    # For any symbols that failed, try stale cache
+    missing = [s for s in valid_symbols if s not in result]
+    if missing:
+        stale = _quotes_cache.get_stale(cache_key)
+        if stale:
+            for s in missing:
+                if s in stale:
+                    result[s] = stale[s]
+
+    if result:
         return {s: result[s] for s in valid_symbols if s in result}
 
     # Nothing available at all
