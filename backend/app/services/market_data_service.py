@@ -1,94 +1,107 @@
-"""Real-time market data service using CoinGecko public API.
+"""Market data service layer.
 
-Fetches live crypto prices with 60-second in-memory caching.
-Falls back to last cached prices on API failure; returns 503 if
-no cache exists.
+Orchestrates provider adapters and caching. Selects the appropriate
+provider for each symbol, handles fallback to cached/stale data,
+and returns data in the legacy dict format expected by existing consumers.
+
+This module preserves the existing public interface:
+- get_live_prices(symbols) -> dict[str, dict[str, Any]]
+- get_current_prices_map(symbols) -> dict[str, float]
+- SYMBOL_TO_COINGECKO (re-exported for backward compatibility)
 """
 
-import time
+from __future__ import annotations
+
+import logging
 from typing import Any
 
-import httpx
 from fastapi import HTTPException, status
 
-COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
+from app.providers.cache import ProviderCache
+from app.providers.coingecko import SYMBOL_TO_COINGECKO_ID, CoinGeckoProvider
+from app.providers.types import NormalizedQuote
 
-SYMBOL_TO_COINGECKO: dict[str, str] = {
-    "BTC": "bitcoin",
-    "ETH": "ethereum",
-}
+logger = logging.getLogger(__name__)
 
-COINGECKO_TO_SYMBOL: dict[str, str] = {v: k for k, v in SYMBOL_TO_COINGECKO.items()}
+# Backward-compatible re-export: other modules import this symbol map
+SYMBOL_TO_COINGECKO: dict[str, str] = dict(SYMBOL_TO_COINGECKO_ID)
 
-CACHE_TTL_SECONDS = 60
+# Provider instance (singleton per process)
+_crypto_provider = CoinGeckoProvider()
 
-_price_cache: dict[str, dict[str, Any]] = {}
-_cache_timestamp: float = 0.0
+# Unified cache for quotes (replaces the old module-level dict)
+_quotes_cache = ProviderCache(default_ttl=60.0)
 
-
-def _is_cache_fresh() -> bool:
-    return time.time() - _cache_timestamp < CACHE_TTL_SECONDS
+CACHE_KEY_PREFIX = "quotes:"
 
 
-def _fetch_from_coingecko(symbols: list[str]) -> dict[str, dict[str, Any]]:
-    """Fetch live prices from CoinGecko for the given internal symbols."""
-    coingecko_ids = [
-        SYMBOL_TO_COINGECKO[s] for s in symbols if s in SYMBOL_TO_COINGECKO
-    ]
-    if not coingecko_ids:
-        return {}
+def _quote_to_dict(q: NormalizedQuote) -> dict[str, Any]:
+    """Convert a NormalizedQuote to the legacy dict format.
 
-    ids_param = ",".join(coingecko_ids)
-    params = {
-        "ids": ids_param,
-        "vs_currencies": "usd",
-        "include_24hr_change": "true",
-    }
-
-    with httpx.Client(timeout=10.0) as client:
-        resp = client.get(COINGECKO_URL, params=params)
-        resp.raise_for_status()
-        data = resp.json()
-
-    result: dict[str, dict[str, Any]] = {}
-    for cg_id, values in data.items():
-        sym = COINGECKO_TO_SYMBOL.get(cg_id)
-        if sym and "usd" in values:
-            result[sym] = {
-                "price": values["usd"],
-                "change_24h": values.get("usd_24h_change", 0.0),
-            }
-    return result
+    Existing consumers expect: {"price": float, "change_24h": float}
+    The "source" field is included so responses can be identified as
+    real provider data vs mock/degraded data.
+    """
+    return {"price": q.price, "change_24h": q.change_24h_pct, "source": q.source}
 
 
 def get_live_prices(symbols: list[str] | None = None) -> dict[str, dict[str, Any]]:
     """Return live prices for requested symbols.
 
-    Uses 60-second in-memory cache. On CoinGecko failure, returns stale
-    cache if available; raises 503 if no cache exists.
-    """
-    global _price_cache, _cache_timestamp
+    Uses provider adapters with 60-second caching. Falls back to stale
+    cache or mock data on provider failure; raises 503 if nothing is
+    available.
 
+    Returns the same dict format as before:
+    {"BTC": {"price": 67500.0, "change_24h": 1.23}, ...}
+    """
     if symbols is None:
         symbols = list(SYMBOL_TO_COINGECKO.keys())
 
-    valid_symbols = [s.upper() for s in symbols if s.upper() in SYMBOL_TO_COINGECKO]
+    valid_symbols = [s.upper() for s in symbols if s.strip()]
 
-    if _is_cache_fresh() and all(s in _price_cache for s in valid_symbols):
-        return {s: _price_cache[s] for s in valid_symbols if s in _price_cache}
+    # Check cache first
+    cache_key = CACHE_KEY_PREFIX + ",".join(sorted(valid_symbols))
+    cached = _quotes_cache.get(cache_key)
+    if cached is not None:
+        return {s: cached[s] for s in valid_symbols if s in cached}
 
+    # Separate symbols by provider
+    crypto_symbols = [s for s in valid_symbols if _crypto_provider.supports_symbol(s)]
+
+    # Fetch from CoinGecko provider
+    result: dict[str, dict[str, Any]] = {}
     try:
-        fresh = _fetch_from_coingecko(valid_symbols)
-        _price_cache.update(fresh)
-        _cache_timestamp = time.time()
-        return {s: _price_cache[s] for s in valid_symbols if s in _price_cache}
+        if crypto_symbols:
+            quotes = _crypto_provider.get_quotes(crypto_symbols)
+            for q in quotes:
+                result[q.symbol] = _quote_to_dict(q)
     except Exception:
-        if _price_cache:
-            return {s: _price_cache[s] for s in valid_symbols if s in _price_cache}
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Market data temporarily unavailable. Please try again later.",
-        )
+        logger.warning("CoinGecko provider failed, falling back to stale cache")
+        # Try stale cache — real data that's expired is still preferable
+        stale = _quotes_cache.get_stale(cache_key)
+        if stale:
+            return {s: stale[s] for s in valid_symbols if s in stale}
+
+        # Do NOT fall back to mock for crypto symbols — mock data
+        # must never silently appear as real provider data for symbols
+        # that have a real provider configured.
+        logger.warning("No cached crypto data available; will return 503")
+
+    if result:
+        # Update cache with fresh data
+        _quotes_cache.set(cache_key, result)
+        return {s: result[s] for s in valid_symbols if s in result}
+
+    # Nothing available at all
+    stale = _quotes_cache.get_stale(cache_key)
+    if stale:
+        return {s: stale[s] for s in valid_symbols if s in stale}
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Market data temporarily unavailable. Please try again later.",
+    )
 
 
 def get_current_prices_map(symbols: list[str] | None = None) -> dict[str, float]:
