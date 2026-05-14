@@ -9,7 +9,7 @@
 **AI Finance WebApp** is a modular financial web application that provides a dashboard for viewing market data, managing authentication, and tracking portfolios with real-time prices.
 
 - **Typical user:** A retail investor or finance enthusiast who wants a single dashboard to monitor prices, manage a watchlist, and analyse market trends.
-- **Current maturity:** Completed MVP. The initial roadmap (Phases 1–7) is finished. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, a portfolio module with analytics dashboard, a watchlist, four alert rule types (price above/below, daily change above/below) with background trigger worker and in-app notifications, toast notifications, skeleton loaders, meaningful empty states, dark/light theme, bilingual i18n (EN/FA) with full RTL support, responsive mobile-first layouts, and a smart market insights card. There is no real brokerage integration or production database yet. A new roadmap with additional phases and refinements will be defined separately.
+- **Current maturity:** Completed MVP — Entering Product Professionalization Stage. The initial roadmap (Phases 1–7) is finished. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, a portfolio module with analytics dashboard, a watchlist, four alert rule types (price above/below, daily change above/below) with background trigger worker and in-app notifications, toast notifications, skeleton loaders, meaningful empty states, dark/light theme, bilingual i18n (EN/FA) with full RTL support, responsive mobile-first layouts, and a smart market insights card. The project is now entering Stage 3 — focused on product hardening, external integrations, branding, and infrastructure stabilization.
 
 ---
 
@@ -763,15 +763,54 @@ frontend/src/lib/i18n/translations.ts   # New translation keys (EN + FA)
 
 ---
 
-> **MVP Roadmap Complete.** Phases 1–7 represent the initial MVP roadmap. This repository state marks the end of the initial roadmap. A new roadmap with additional phases and refinements will be defined separately.
+> **MVP Roadmap Complete.** Phases 1–7 represent the initial MVP roadmap. This repository state marks the end of the initial roadmap.
+
+---
+
+## Stage 3 — Product Hardening & Professionalization
+
+The project has successfully completed the MVP stage (Phases 1–7) and is now entering a new phase focused on transforming the prototype into a professional-grade product.
+
+This stage focuses on:
+
+- **Product polish** — refining UX, improving interaction quality, and resolving rough edges across all pages.
+- **Infrastructure stabilization** — hardening the backend, improving reliability, and preparing for production deployment.
+- **External data integrations** — connecting real financial market data providers to replace mock data.
+- **Branding and media assets** — establishing platform identity with logos, banners, and educational media.
+- **Reliability and scalability improvements** — addressing caching, database migrations, error handling, and monitoring.
+- **Improving the user experience across devices** — ensuring consistent, polished behavior on mobile, tablet, and desktop.
+
+### Development Tracks
+
+Stage 3 work is organized across parallel tracks rather than linear phases. Multiple tracks can progress simultaneously, and each track groups related work for clarity and focus.
+
+| Track | Focus |
+|---|---|
+| **Product Experience Track** | UI polish, usability improvements, responsiveness, interaction quality. |
+| **Live Market Data Track** | Integration of external financial market data providers. |
+| **Branding & Media Track** | Platform assets, branding elements, educational media, banners. |
+| **Design System Track** | UI consistency, reusable components, visual hierarchy, spacing and typography systems. |
+| **Reliability & Infrastructure Track** | System stability, performance improvements, backend robustness. |
+
+### Market Data Integration Strategy
+
+Market data integrations follow a backend-driven approach:
+
+- **Market providers are integrated via the backend.** The frontend should not directly call external data providers.
+- **Data normalization is handled in backend services.** External API responses are transformed into a consistent internal format before being served to the frontend.
+- **Provider abstraction layers should be used where possible.** Each external provider should be wrapped behind an adapter interface, making it straightforward to swap or add providers without changing downstream code.
+- **Rate limit awareness and caching** are required for all external provider integrations to avoid service disruptions and unnecessary API costs.
+
+---
 
 ### For AI agents
 
 1. **Read `PROJECT_CONTEXT.md` first** before making any changes.
-2. Read `AI_DEVELOPMENT_GUIDE.md` if it exists.
-3. Read `frontend/AGENTS.md` — Next.js 16 has breaking changes from common training data.
-4. Always work on a feature branch; never commit to `main`.
-5. GitHub is the single source of truth.
+2. **Read `DEVIN_GUIDE.md`** for product direction, development standards, and architectural principles.
+3. Read `AI_DEVELOPMENT_GUIDE.md` if it exists.
+4. Read `frontend/AGENTS.md` — Next.js 16 has breaking changes from common training data.
+5. Always work on a feature branch; never commit to `main`.
+6. GitHub is the single source of truth.
 
 ## Archived Branches (May 2026)
 
