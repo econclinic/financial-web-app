@@ -1,7 +1,9 @@
 # Market Data Architecture Proposal — Stage 3
 
 > Technical architecture design for integrating external market data providers.
-> This document is a planning artifact — no code changes are included.
+> This is the authoritative detailed architecture document for the market data system.
+>
+> For high-level project context and overall progress, see [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md).
 
 ---
 
@@ -675,7 +677,7 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 ## 8. Recommended Implementation Order
 
-### Phase A — Foundation (Provider Adapter Layer)
+### Phase A — Foundation (Provider Adapter Layer) ✅
 
 **Goal:** Establish the provider abstraction without changing any existing behavior.
 
@@ -691,7 +693,7 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Minimal. Internal refactor only.
 
-### Phase B — Finnhub Integration (Stock Data)
+### Phase B — Finnhub Integration (Stock Data) ✅
 
 **Goal:** Replace AAPL mock data with real stock quotes.
 
@@ -705,7 +707,21 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Low. Additive change. Fallback to mock preserves existing behavior.
 
-### Phase C — FRED Integration (Macroeconomic Data)
+### Phase C — Reliability & Observability ✅
+
+**Goal:** Improve production readiness with structured logging and error classification.
+
+1. Add structured logging to `_request()` in Finnhub and CoinGecko adapters (provider, endpoint, latency_ms, status).
+2. Classify errors: `rate_limit` (429), `timeout`, `http_error`, `parse_error`.
+3. Detect and log HTTP 429 rate-limit responses explicitly.
+4. Ensure consistent exception handling across all providers.
+5. Add resilience tests.
+
+**API contract:** Unchanged. No behavior changes — purely observability improvements.
+
+**Risk:** Minimal. Logging-only changes.
+
+### Future — FRED Integration (Macroeconomic Data)
 
 **Goal:** Add macroeconomic indicator data as a new feature.
 
@@ -722,7 +738,7 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Low. Entirely new endpoints — no existing behavior affected.
 
-### Phase D — Cache Hardening
+### Phase D — Cache Hardening (Planned)
 
 **Goal:** Replace ad-hoc caching with the unified cache layer.
 
@@ -734,7 +750,7 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Medium. Touches existing cache behavior. Requires careful testing to ensure no regressions.
 
-### Phase E — Health Monitoring & Background Jobs
+### Phase E — Health Monitoring & Background Jobs (Planned)
 
 **Goal:** Add operational visibility and proactive cache warming.
 
@@ -772,15 +788,16 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 | Phase | Scope | Dependencies | Estimated Effort |
 |---|---|---|---|
-| **A — Foundation** | Provider layer, cache abstraction | None | 1 PR |
-| **B — Finnhub** | Real stock data | Phase A, Finnhub API key | 1 PR |
-| **C — FRED** | Macroeconomic data | Phase A, FRED API key | 1 PR |
-| **D — Cache Hardening** | Unified caching, coalescing, circuit breaker | Phase A | 1 PR |
-| **E — Health & Monitoring** | Background jobs, logging | Phases A–D | 1 PR |
-| **F — News** | News feed | Phase A | 1 PR (future) |
-| **G — International** | Twelve Data, multi-provider | Phase A+B | 1+ PR (future) |
+| **A — Foundation** | Provider layer, cache abstraction | None | ✅ PR #20 |
+| **B — Finnhub** | Real stock data, provider registry | Phase A | ✅ PR #21 |
+| **C — Reliability & Observability** | Structured logging, error classification | Phase B | ✅ PR #22 |
+| **D — Cache Hardening** | Unified caching, coalescing, circuit breaker | Phase A | Planned |
+| **E — Health & Monitoring** | Background jobs, logging | Phases A–D | Planned |
+| **F — FRED** | Macroeconomic data | Phase A, FRED API key | Planned |
+| **G — News** | News feed | Phase A | Future |
+| **H — International** | Twelve Data, multi-provider | Phase A+B | Future |
 
-Phases A–C can be delivered as focused, reviewable PRs. Phases D–E harden the system. Phases F–G extend coverage as the product grows.
+Phases A–C have been implemented and merged. Phases D–E harden the system. Phases F–H extend coverage as the product grows.
 
 ---
 
