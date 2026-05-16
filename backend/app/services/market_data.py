@@ -1,17 +1,23 @@
 """Market data service.
 
-Uses provider adapters for live data:
+Uses the provider registry for live data:
 - CoinGecko for crypto (BTC, ETH)
-- Mock provider for symbols not available on any real provider (e.g. AAPL)
+- Finnhub for stocks (AAPL)
+- Mock provider for unsupported symbols (fallback)
+
+Price history currently uses the mock provider for all symbols.
+Real price history (CoinGecko market_chart, Finnhub candles) can be
+routed through the registry in a future phase once API keys are
+provisioned.
 
 This module preserves the existing public interface:
 - get_latest_quotes() -> list[MarketQuote]
 - get_price_history(symbol, days) -> list[PricePoint] | None
 """
 
-from app.providers.mock import MockMarketDataProvider
+from app.providers.registry import get_mock_provider
 from app.schemas.market_data import MarketQuote, PricePoint
-from app.services.market_data_service import SYMBOL_TO_COINGECKO, get_live_prices
+from app.services.market_data_service import get_live_prices
 
 _SYMBOLS: dict[str, dict[str, float | str]] = {
     "BTC": {"name": "Bitcoin", "base_price": 62_450.00},
@@ -19,22 +25,18 @@ _SYMBOLS: dict[str, dict[str, float | str]] = {
     "AAPL": {"name": "Apple Inc.", "base_price": 189.50},
 }
 
-_mock_provider = MockMarketDataProvider()
-
 
 def get_latest_quotes() -> list[MarketQuote]:
     """Return current quotes for all tracked symbols.
 
-    Uses CoinGecko for crypto symbols, mock provider for others.
+    Uses get_live_prices which routes through the provider registry.
     """
     from datetime import datetime, timezone
 
     now = datetime.now(tz=timezone.utc)
 
-    # Fetch crypto prices via the service layer (uses CoinGecko adapter)
-    crypto_symbols = [s for s in _SYMBOLS if s in SYMBOL_TO_COINGECKO]
     try:
-        live = get_live_prices(crypto_symbols)
+        live = get_live_prices(list(_SYMBOLS.keys()))
     except Exception:
         live = {}
 
@@ -48,15 +50,7 @@ def get_latest_quotes() -> list[MarketQuote]:
             change = round(price - base, 2)
             change_pct = round(change_24h, 2)
         else:
-            # Use mock provider for non-crypto symbols
-            mock_quotes = _mock_provider.get_quotes([symbol])
-            if mock_quotes:
-                mq = mock_quotes[0]
-                price = round(mq.price, 2)
-                change = round(mq.change_24h, 2)
-                change_pct = round(mq.change_24h_pct, 2)
-            else:
-                continue
+            continue
 
         quotes.append(
             MarketQuote(
@@ -74,14 +68,16 @@ def get_latest_quotes() -> list[MarketQuote]:
 def get_price_history(symbol: str, days: int = 30) -> list[PricePoint] | None:
     """Return price history for a symbol.
 
-    Uses mock provider for price history (real history integration
-    is planned for Phase B+).
+    Currently uses mock provider for all price history. Real history
+    (CoinGecko market_chart, Finnhub candles) will be routed through
+    the provider registry once API keys are provisioned.
     """
     sym = symbol.upper()
     if sym not in _SYMBOLS:
         return None
 
-    history = _mock_provider.get_price_history(sym, days)
+    mock = get_mock_provider()
+    history = mock.get_price_history(sym, days)
     if history is None:
         return None
 

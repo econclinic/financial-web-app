@@ -11,6 +11,10 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
+    # Provider API keys (empty string = use free tier / no auth)
+    FINNHUB_API_KEY: str = ""
+    COINGECKO_API_KEY: str = ""
+
     SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
