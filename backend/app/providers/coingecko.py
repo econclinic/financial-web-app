@@ -3,11 +3,15 @@
 Fetches live cryptocurrency prices from the CoinGecko API and
 normalizes responses into internal types. All CoinGecko-specific
 parsing and field mapping is isolated in this module.
+
+All HTTP calls go through ``_request()`` which provides structured
+logging with latency, error classification, and rate-limit detection.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -71,8 +75,16 @@ class CoinGeckoProvider:
         }
         headers = self._auth_headers()
 
-        raw = self._request("/simple/price", params=params, headers=headers)
-        return self._parse_quotes(raw)
+        try:
+            raw = self._request("/simple/price", params=params, headers=headers)
+            return self._parse_quotes(raw)
+        except Exception:
+            logger.warning(
+                "provider=%s endpoint=/simple/price symbols=%d "
+                "status=error context=get_quotes",
+                self.name, len(coingecko_ids),
+            )
+            return []
 
     def get_price_history(
         self,
@@ -91,12 +103,20 @@ class CoinGeckoProvider:
         }
         headers = self._auth_headers()
 
-        raw = self._request(
-            f"/coins/{cg_id}/market_chart",
-            params=params,
-            headers=headers,
-        )
-        return self._parse_price_history(sym, raw)
+        try:
+            raw = self._request(
+                f"/coins/{cg_id}/market_chart",
+                params=params,
+                headers=headers,
+            )
+            return self._parse_price_history(sym, raw)
+        except Exception:
+            logger.warning(
+                "provider=%s endpoint=/coins/%s/market_chart symbol=%s "
+                "status=error context=get_price_history",
+                self.name, cg_id, sym,
+            )
+            return None
 
     # ------------------------------------------------------------------
     # Private: HTTP and parsing (provider-specific logic)
@@ -115,15 +135,66 @@ class CoinGeckoProvider:
     ) -> dict[str, Any]:
         """Make an HTTP GET request to CoinGecko and return parsed JSON.
 
+        Logs structured provider metrics on every call (success and
+        failure). Classifies errors as ``rate_limit``, ``timeout``,
+        ``http_error``, or ``parse_error``.
+
         Raises httpx.HTTPStatusError on non-2xx responses.
         Raises httpx.TimeoutException on timeout.
         """
         url = f"{COINGECKO_BASE_URL}{path}"
-        with httpx.Client(timeout=HTTP_TIMEOUT) as client:
-            resp = client.get(url, params=params, headers=headers)
-            resp.raise_for_status()
-            result: dict[str, Any] = resp.json()
-            return result
+        start = time.monotonic()
+        try:
+            with httpx.Client(timeout=HTTP_TIMEOUT) as client:
+                resp = client.get(url, params=params, headers=headers)
+                latency_ms = round((time.monotonic() - start) * 1000)
+
+                if resp.status_code == 429:
+                    logger.warning(
+                        "provider=%s endpoint=%s status=rate_limit latency_ms=%d",
+                        self.name, path, latency_ms,
+                    )
+                    resp.raise_for_status()
+
+                resp.raise_for_status()
+
+                try:
+                    result: dict[str, Any] = resp.json()
+                except Exception as exc:
+                    logger.error(
+                        "provider=%s endpoint=%s status=error "
+                        "error_type=parse_error latency_ms=%d",
+                        self.name, path, latency_ms,
+                    )
+                    raise ValueError("Invalid JSON from CoinGecko") from exc
+
+                logger.debug(
+                    "provider=%s endpoint=%s status=success latency_ms=%d",
+                    self.name, path, latency_ms,
+                )
+                return result
+
+        except httpx.TimeoutException:
+            latency_ms = round((time.monotonic() - start) * 1000)
+            logger.error(
+                "provider=%s endpoint=%s status=error "
+                "error_type=timeout latency_ms=%d",
+                self.name, path, latency_ms,
+            )
+            raise
+
+        except httpx.HTTPStatusError as exc:
+            latency_ms = round((time.monotonic() - start) * 1000)
+            error_type = (
+                "rate_limit" if exc.response.status_code == 429 else "http_error"
+            )
+            logger.error(
+                "provider=%s endpoint=%s status=error "
+                "error_type=%s http_status=%d latency_ms=%d",
+                self.name, path, error_type,
+                exc.response.status_code, latency_ms,
+            )
+            raise
 
     def _parse_quotes(self, raw: dict[str, Any]) -> list[NormalizedQuote]:
         """Parse CoinGecko /simple/price response into NormalizedQuotes.

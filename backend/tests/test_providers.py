@@ -8,9 +8,14 @@ Covers:
 - Cache interaction (hit/miss, stale fallback)
 - Fallback/error behavior when providers fail
 - No-silent-mock guarantee for real-provider symbols
+- Phase C: Structured logging, error classification, rate-limit detection
 """
 
+import logging
 import time
+from unittest.mock import patch
+
+import httpx
 
 from app.providers.cache import ProviderCache
 from app.providers.coingecko import CoinGeckoProvider
@@ -307,3 +312,162 @@ class TestNoSilentMock:
         cg_raw = {"bitcoin": {"usd": 67500.0, "usd_24h_change": 1.0}}
         cg_quotes = coingecko._parse_quotes(cg_raw)
         assert all(q.source == "coingecko" for q in cg_quotes)
+
+
+# ── Phase C: Structured Logging & Error Classification ─────────────
+
+
+def _mock_response(status_code: int, json_data: dict | None = None) -> httpx.Response:
+    """Build a fake httpx.Response for testing provider error paths."""
+    request = httpx.Request("GET", "https://example.com/test")
+    if json_data is not None:
+        return httpx.Response(status_code, json=json_data, request=request)
+    return httpx.Response(status_code, text="error", request=request)
+
+
+class TestFinnhubStructuredLogging:
+    def setup_method(self) -> None:
+        self.provider = FinnhubProvider(api_key="test-key")
+
+    def test_http_error_logs_structured_fields(self, caplog: logging.LogRecord) -> None:
+        """Provider HTTP errors produce structured log lines."""
+        resp = _mock_response(401)
+
+        with patch("app.providers.finnhub.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.return_value = resp
+
+            with caplog.at_level(logging.ERROR, logger="app.providers.finnhub"):
+                quotes = self.provider.get_quotes(["AAPL"])
+
+        assert quotes == []
+        assert any("provider=finnhub" in r.message for r in caplog.records)
+        assert any("error_type=http_error" in r.message for r in caplog.records)
+        assert any("latency_ms=" in r.message for r in caplog.records)
+
+    def test_rate_limit_logs_as_rate_limit(self, caplog: logging.LogRecord) -> None:
+        """HTTP 429 is classified as rate_limit, not generic http_error."""
+        resp = _mock_response(429)
+
+        with patch("app.providers.finnhub.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.return_value = resp
+
+            with caplog.at_level(logging.WARNING, logger="app.providers.finnhub"):
+                quotes = self.provider.get_quotes(["AAPL"])
+
+        assert quotes == []
+        assert any("status=rate_limit" in r.message for r in caplog.records)
+
+    def test_timeout_logs_as_timeout(self, caplog: logging.LogRecord) -> None:
+        """Timeouts are classified as error_type=timeout."""
+        with patch("app.providers.finnhub.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.side_effect = httpx.TimeoutException("timed out")
+
+            with caplog.at_level(logging.ERROR, logger="app.providers.finnhub"):
+                quotes = self.provider.get_quotes(["AAPL"])
+
+        assert quotes == []
+        assert any("error_type=timeout" in r.message for r in caplog.records)
+
+    def test_success_logs_at_debug_level(self, caplog: logging.LogRecord) -> None:
+        """Successful requests log at DEBUG level only."""
+        resp = _mock_response(200, json_data={"c": 150.0, "d": 1.0, "dp": 0.5, "h": 151.0, "l": 149.0, "o": 149.5, "pc": 149.0, "t": 1672531200})
+
+        with patch("app.providers.finnhub.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.return_value = resp
+
+            with caplog.at_level(logging.DEBUG, logger="app.providers.finnhub"):
+                quotes = self.provider.get_quotes(["AAPL"])
+
+        assert len(quotes) == 1
+        debug_logs = [r for r in caplog.records if r.levelno == logging.DEBUG]
+        assert any("status=success" in r.message for r in debug_logs)
+
+    def test_provider_failure_does_not_crash_get_quotes(self) -> None:
+        """get_quotes returns empty list on provider failure, never raises."""
+        with patch("app.providers.finnhub.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.side_effect = httpx.TimeoutException("timed out")
+
+            quotes = self.provider.get_quotes(["AAPL", "MSFT", "GOOGL"])
+
+        assert quotes == []
+
+    def test_provider_failure_does_not_crash_get_price_history(self) -> None:
+        """get_price_history returns None on provider failure, never raises."""
+        with patch("app.providers.finnhub.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.side_effect = httpx.TimeoutException("timed out")
+
+            history = self.provider.get_price_history("AAPL")
+
+        assert history is None
+
+
+class TestCoinGeckoStructuredLogging:
+    def setup_method(self) -> None:
+        self.provider = CoinGeckoProvider()
+
+    def test_http_error_logs_structured_fields(self, caplog: logging.LogRecord) -> None:
+        """Provider HTTP errors produce structured log lines."""
+        resp = _mock_response(500)
+
+        with patch("app.providers.coingecko.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.return_value = resp
+
+            with caplog.at_level(logging.ERROR, logger="app.providers.coingecko"):
+                quotes = self.provider.get_quotes(["BTC"])
+
+        assert quotes == []
+        assert any("provider=coingecko" in r.message for r in caplog.records)
+        assert any("error_type=http_error" in r.message for r in caplog.records)
+
+    def test_rate_limit_logs_as_rate_limit(self, caplog: logging.LogRecord) -> None:
+        """HTTP 429 is classified as rate_limit for CoinGecko."""
+        resp = _mock_response(429)
+
+        with patch("app.providers.coingecko.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.return_value = resp
+
+            with caplog.at_level(logging.WARNING, logger="app.providers.coingecko"):
+                quotes = self.provider.get_quotes(["BTC"])
+
+        assert quotes == []
+        assert any("status=rate_limit" in r.message for r in caplog.records)
+
+    def test_timeout_logs_as_timeout(self, caplog: logging.LogRecord) -> None:
+        """Timeouts are classified as error_type=timeout."""
+        with patch("app.providers.coingecko.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.side_effect = httpx.TimeoutException("timed out")
+
+            with caplog.at_level(logging.ERROR, logger="app.providers.coingecko"):
+                quotes = self.provider.get_quotes(["BTC"])
+
+        assert quotes == []
+        assert any("error_type=timeout" in r.message for r in caplog.records)
+
+    def test_provider_failure_does_not_crash_get_quotes(self) -> None:
+        """get_quotes returns empty list on provider failure, never raises."""
+        with patch("app.providers.coingecko.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.side_effect = ConnectionError("network down")
+
+            quotes = self.provider.get_quotes(["BTC", "ETH"])
+
+        assert quotes == []
+
+    def test_provider_failure_does_not_crash_get_price_history(self) -> None:
+        """get_price_history returns None on provider failure, never raises."""
+        with patch("app.providers.coingecko.httpx.Client") as mock_client:
+            client_instance = mock_client.return_value.__enter__.return_value
+            client_instance.get.side_effect = ConnectionError("network down")
+
+            history = self.provider.get_price_history("BTC")
+
+        assert history is None
