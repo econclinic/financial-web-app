@@ -801,16 +801,59 @@ Market data integrations follow a backend-driven approach:
 - **Provider abstraction layers should be used where possible.** Each external provider should be wrapped behind an adapter interface, making it straightforward to swap or add providers without changing downstream code.
 - **Rate limit awareness and caching** are required for all external provider integrations to avoid service disruptions and unnecessary API costs.
 
+### Stage 3 — Implementation Progress
+
+The market data system has been implemented through several focused phases, each delivered as a separate PR and merged to `main`.
+
+#### Phase A — Provider Abstraction Layer (PR #20)
+
+Established a vendor-independent architecture for market data integration:
+
+- Created `backend/app/providers/` package with Protocol-based provider abstraction
+- Defined normalized market data types (`NormalizedQuote`, `NormalizedPriceHistory`, `NormalizedEconomicSeries`) as the internal data contract between providers and services
+- Built CoinGecko provider adapter — isolated all CoinGecko-specific JSON parsing and HTTP calls inside the adapter
+- Implemented in-memory caching layer with per-key TTL and stale-while-revalidate support
+- Created mock provider for development and fallback scenarios
+- Refactored `market_data_service.py` to use the provider abstraction instead of direct CoinGecko calls
+
+This phase established the foundation for adding new providers without modifying the service or API layers.
+
+#### Phase B — Multi-Provider System (PR #21)
+
+Validated the provider abstraction by integrating a second real data provider:
+
+- Added Finnhub provider adapter for US equity quotes (AAPL, MSFT, GOOGL, AMZN, TSLA, META, NVDA)
+- Created provider registry (`providers/registry.py`) for symbol-to-provider routing: crypto → CoinGecko, stocks → Finnhub, unknown → Mock
+- Refactored service layer to route through the registry, making it fully provider-agnostic
+- Added `source` field to all quote responses for provider attribution transparency
+- Enforced the no-silent-mock guarantee: symbols with real providers never silently fall back to mock data on failure (stale cache or 503 instead)
+- Expanded test coverage with 34 new provider tests
+
+#### Phase C — Reliability & Observability (PR #22)
+
+Improved production readiness with structured logging and error classification:
+
+- Added structured logging to all provider HTTP calls: provider name, endpoint, latency (ms), success/failure status
+- Classified provider errors into four types: `rate_limit` (HTTP 429), `timeout`, `http_error`, `parse_error`
+- Explicit rate-limit detection — HTTP 429 responses logged with `status=rate_limit` for easy filtering
+- Consistent exception handling across all providers — `get_quotes()` and `get_price_history()` always return safe defaults on failure
+- Added 11 new resilience tests verifying error logging, rate-limit detection, and failure safety
+
+These improvements enable production debugging and provider monitoring without adding infrastructure complexity.
+
+> **Detailed architecture documentation:** See [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for full design decisions, data contracts, caching strategy, error handling model, and implementation details.
+
 ---
 
 ### For AI agents
 
 1. **Read `PROJECT_CONTEXT.md` first** before making any changes.
 2. **Read `DEVIN_GUIDE.md`** for product direction, development standards, and architectural principles.
-3. Read `AI_DEVELOPMENT_GUIDE.md` if it exists.
-4. Read `frontend/AGENTS.md` — Next.js 16 has breaking changes from common training data.
-5. Always work on a feature branch; never commit to `main`.
-6. GitHub is the single source of truth.
+3. Read [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for detailed market data architecture and provider system design.
+4. Read `AI_DEVELOPMENT_GUIDE.md` if it exists.
+5. Read `frontend/AGENTS.md` — Next.js 16 has breaking changes from common training data.
+6. Always work on a feature branch; never commit to `main`.
+7. GitHub is the single source of truth.
 
 ## Archived Branches (May 2026)
 
@@ -829,7 +872,7 @@ Phase 7 was implemented on:
 |---|---|---|---|
 | 1 | Portfolio Module | Done | Record transactions, view positions, P&L, and allocation chart. |
 | 2 | Watchlist | Done | Track favourite symbols with live prices. Add/remove symbols, duplicate prevention, user isolation. |
-| 3 | Real Market Data Providers | Partial | CoinGecko integrated for crypto (BTC, ETH). Stock prices (AAPL) still mock — need Alpha Vantage or Yahoo Finance. |
+| 3 | Real Market Data Providers | In Progress | Provider abstraction layer with CoinGecko (crypto) and Finnhub (US stocks). Registry-based routing, structured logging, observability. See [architecture docs](MARKET_DATA_ARCHITECTURE_PROPOSAL.md). |
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
 | 5 | Price Alerts | Done | Simple one-time trigger alerts with background worker (60s). Triggered state visible in UI. |
 | 5b | Notifications (MVP) | Done | In-app notifications triggered by price alerts. Read/unread state, navbar badge, dedicated page. |
