@@ -6,6 +6,9 @@ parsing and field mapping is isolated in this module.
 
 Finnhub API docs: https://finnhub.io/docs/api
 Free tier: 60 calls/min, real-time US stock quotes.
+
+All HTTP calls go through ``_request()`` which provides structured
+logging with latency, error classification, and rate-limit detection.
 """
 
 from __future__ import annotations
@@ -76,7 +79,11 @@ class FinnhubProvider:
                 if quote is not None:
                     quotes.append(quote)
             except Exception:
-                logger.warning("Finnhub quote failed for %s", sym)
+                logger.warning(
+                    "provider=%s endpoint=/quote symbol=%s "
+                    "status=error context=get_quotes",
+                    self.name, sym,
+                )
         return quotes
 
     def get_price_history(
@@ -103,7 +110,11 @@ class FinnhubProvider:
             raw = self._request("/stock/candle", params=params)
             return self._parse_candles(sym, raw)
         except Exception:
-            logger.warning("Finnhub candle request failed for %s", sym)
+            logger.warning(
+                "provider=%s endpoint=/stock/candle symbol=%s "
+                "status=error context=get_price_history",
+                self.name, sym,
+            )
             return None
 
     # ------------------------------------------------------------------
@@ -117,6 +128,10 @@ class FinnhubProvider:
     ) -> dict[str, Any]:
         """Make an HTTP GET request to Finnhub and return parsed JSON.
 
+        Logs structured provider metrics on every call (success and
+        failure). Classifies errors as ``rate_limit``, ``timeout``,
+        ``http_error``, or ``parse_error``.
+
         Raises httpx.HTTPStatusError on non-2xx responses.
         Raises httpx.TimeoutException on timeout.
         """
@@ -125,11 +140,58 @@ class FinnhubProvider:
         if self._api_key:
             request_params["token"] = self._api_key
 
-        with httpx.Client(timeout=HTTP_TIMEOUT) as client:
-            resp = client.get(url, params=request_params)
-            resp.raise_for_status()
-            result: dict[str, Any] = resp.json()
-            return result
+        start = time.monotonic()
+        try:
+            with httpx.Client(timeout=HTTP_TIMEOUT) as client:
+                resp = client.get(url, params=request_params)
+                latency_ms = round((time.monotonic() - start) * 1000)
+
+                if resp.status_code == 429:
+                    logger.warning(
+                        "provider=%s endpoint=%s status=rate_limit latency_ms=%d",
+                        self.name, path, latency_ms,
+                    )
+                    resp.raise_for_status()
+
+                resp.raise_for_status()
+
+                try:
+                    result: dict[str, Any] = resp.json()
+                except Exception as exc:
+                    logger.error(
+                        "provider=%s endpoint=%s status=error "
+                        "error_type=parse_error latency_ms=%d",
+                        self.name, path, latency_ms,
+                    )
+                    raise ValueError("Invalid JSON from Finnhub") from exc
+
+                logger.debug(
+                    "provider=%s endpoint=%s status=success latency_ms=%d",
+                    self.name, path, latency_ms,
+                )
+                return result
+
+        except httpx.TimeoutException:
+            latency_ms = round((time.monotonic() - start) * 1000)
+            logger.error(
+                "provider=%s endpoint=%s status=error "
+                "error_type=timeout latency_ms=%d",
+                self.name, path, latency_ms,
+            )
+            raise
+
+        except httpx.HTTPStatusError as exc:
+            latency_ms = round((time.monotonic() - start) * 1000)
+            error_type = (
+                "rate_limit" if exc.response.status_code == 429 else "http_error"
+            )
+            logger.error(
+                "provider=%s endpoint=%s status=error "
+                "error_type=%s http_status=%d latency_ms=%d",
+                self.name, path, error_type,
+                exc.response.status_code, latency_ms,
+            )
+            raise
 
     def _parse_quote(
         self, symbol: str, raw: dict[str, Any]

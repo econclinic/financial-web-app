@@ -877,6 +877,83 @@ Consumers can use this field to:
 
 ---
 
+## Implemented: Reliability & Observability (Phase C)
+
+Phase C improves production readiness by adding structured logging, error classification, and rate-limit detection to all provider adapters. No API contracts, service interfaces, cache behavior, or registry logic were changed.
+
+### Provider Failure Model
+
+The system handles provider failures through a clear chain:
+
+1. **Provider call succeeds** → data cached and returned
+2. **Provider call fails** → error logged with structured fields, symbol skipped
+3. **All symbols for a provider fail** → service checks stale cache
+4. **Stale cache available** → stale data returned (was real at some point)
+5. **No stale cache** → HTTP 503 "Market data temporarily unavailable"
+
+Real-provider symbols (BTC, ETH, AAPL, etc.) **never** silently fall back to mock data. The mock provider is only used for symbols that have no real provider configured.
+
+### Observability Model
+
+All provider HTTP calls go through a `_request()` method that produces structured log lines with consistent fields:
+
+**Success (DEBUG level):**
+```
+provider=finnhub endpoint=/quote status=success latency_ms=240
+```
+
+**Failure (ERROR level):**
+```
+provider=finnhub endpoint=/quote status=error error_type=http_error http_status=401 latency_ms=120
+```
+
+**Rate limit (WARNING level):**
+```
+provider=coingecko endpoint=/simple/price status=rate_limit latency_ms=85
+```
+
+#### Error Classification
+
+Every provider failure is classified into one of four types:
+
+| Error Type | Condition | Log Level |
+|---|---|---|
+| `rate_limit` | HTTP 429 response | WARNING |
+| `timeout` | Request exceeded timeout | ERROR |
+| `http_error` | Non-2xx response (excluding 429) | ERROR |
+| `parse_error` | Response body is not valid JSON | ERROR |
+
+This classification enables targeted operational response: rate limits may clear on their own, timeouts suggest network issues, HTTP errors suggest auth/config problems, and parse errors suggest provider API changes.
+
+#### Latency Tracking
+
+Every provider call records `latency_ms` (milliseconds, wall-clock). This enables:
+- Identifying slow providers
+- Detecting degradation trends
+- Setting baseline performance expectations
+
+#### Rate-Limit Detection
+
+HTTP 429 responses are detected and logged separately from other HTTP errors. The log entry uses `status=rate_limit` for easy filtering. No automatic retry or cooldown is implemented yet — Phase C only detects and records the condition.
+
+### Operational Goals
+
+Phase C improves:
+- **Production debugging** — structured fields make logs grep-friendly and parseable by log aggregators
+- **Provider monitoring** — consistent format across all providers enables unified dashboards
+- **System reliability** — all provider methods (`get_quotes`, `get_price_history`) catch exceptions and return safe defaults (empty list or None), never raising to the service layer
+
+### Implementation Scope
+
+Files modified:
+- `providers/finnhub.py` — structured logging in `_request()`, `get_quotes()`, `get_price_history()`
+- `providers/coingecko.py` — structured logging in `_request()`, `get_quotes()`, `get_price_history()`
+- `tests/test_providers.py` — 11 new tests covering error logging, rate-limit detection, timeout classification, and failure resilience
+
+No changes to: API responses, service layer interfaces, provider registry, cache behavior, or frontend.
+
+---
+
 ## Summary
 
 This architecture transforms the current monolithic market data integration (CoinGecko hardcoded + mock data) into a modular, provider-agnostic system that:
