@@ -8,7 +8,7 @@ Dependency flow: API -> this service -> snapshot repository -> snapshot table.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
@@ -29,10 +29,10 @@ RETURN_WINDOWS: dict[str, int] = {
 def _compute_return(
     current_value: float,
     prior_value: float,
-) -> dict[str, float]:
+) -> dict[str, float | None]:
     """Compute absolute and percentage return between two values."""
     absolute = round(current_value - prior_value, 2)
-    percent = round(absolute / prior_value, 4) if prior_value != 0 else 0.0
+    percent = round(absolute / prior_value, 4) if prior_value > 0 else None
     return {"absolute": absolute, "percent": percent}
 
 
@@ -77,7 +77,10 @@ def get_performance_history(
     Results are in chronological ascending order.
     """
     days = RETURN_WINDOWS[range_key]
-    end = datetime.now(timezone.utc)
+    latest = get_latest_snapshot(db, user_id)
+    if latest is None:
+        return []
+    end = latest.timestamp
     start = end - timedelta(days=days)
     snapshots = get_snapshots(db, user_id, start, end)
     return [

@@ -77,7 +77,7 @@ class SnapshotHistoryResponse(BaseModel):
 
 class PerformanceWindowReturn(BaseModel):
     absolute: float
-    percent: float
+    percent: float | None = None
 
 
 class PerformanceReturns(BaseModel):
