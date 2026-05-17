@@ -103,3 +103,37 @@ class PerformanceHistoryPoint(BaseModel):
 class PerformanceHistoryResponse(BaseModel):
     range: str
     points: list[PerformanceHistoryPoint]
+
+
+class AssetAllocationItem(BaseModel):
+    symbol: str
+    quantity: float
+    price: float
+    value: float
+    weight: float | None = None
+
+
+class PortfolioAllocationResponse(BaseModel):
+    total_value: float
+    assets: list[AssetAllocationItem]
+
+
+class AssetClassExposureItem(BaseModel):
+    asset_class: str
+    value: float
+    weight: float | None = None
+
+
+class PortfolioExposureResponse(BaseModel):
+    total_value: float
+    exposures: list[AssetClassExposureItem]
+
+
+class TopPositionItem(BaseModel):
+    symbol: str
+    value: float
+    weight: float | None = None
+
+
+class TopPositionsResponse(BaseModel):
+    positions: list[TopPositionItem]

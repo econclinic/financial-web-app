@@ -875,6 +875,17 @@ Introduced a performance layer that computes portfolio return metrics from persi
 - New endpoints: `GET /api/portfolio/performance` (return summary), `GET /api/portfolio/performance/history` (timeseries with range filtering)
 - 20 unit tests covering service logic, repository helpers, API endpoints, range filtering, user isolation, and edge cases
 
+#### Phase G — Portfolio Allocation & Exposure API (PR #27)
+
+Introduced a read-only allocation analytics layer that computes current portfolio composition:
+
+- Created `app/services/allocation/portfolio_allocation_service.py` — computes per-asset allocation weights, asset class exposure, and top positions
+- Allocation weights are calculated from current market prices (value / total_value); weights are `null` when total value is zero
+- Exposure aggregates allocation by asset class (crypto, equity, etc.) with class-level weights
+- Architecturally independent from the snapshot/performance system — allocation represents current state, not historical performance
+- New endpoints: `GET /api/portfolio/allocation`, `GET /api/portfolio/exposure`, `GET /api/portfolio/top-positions`
+- 20 unit tests covering allocation calculation, exposure aggregation, top positions ranking, edge cases, sorting, and API endpoints
+
 > **Detailed architecture documentation:** See [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for full design decisions, data contracts, caching strategy, error handling model, and implementation details.
 
 ---
