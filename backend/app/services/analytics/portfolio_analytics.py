@@ -70,6 +70,9 @@ def _normalize_positions(
         net_qty = round(entry["buy_qty"] - entry["sell_qty"], 8)
         if net_qty <= 0:
             continue
+        # Sell transactions reduce quantity but do not adjust the historical
+        # cost basis. Average cost is derived from buy transactions only.
+        # This simplified model is sufficient for Phase D analytics.
         avg_cost = (
             round(entry["buy_cost"] / entry["buy_qty"], 2)
             if entry["buy_qty"] > 0

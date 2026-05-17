@@ -30,7 +30,7 @@ def calculate_allocation(
         return []
 
     allocation = [
-        {"symbol": sym, "weight": round(val / total, 4)}
+        {"symbol": sym, "weight": val / total}
         for sym, val in values
     ]
     allocation.sort(key=lambda a: a["weight"], reverse=True)
