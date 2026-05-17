@@ -14,6 +14,9 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.models.portfolio import PortfolioTransaction
+from app.repositories.portfolio_transaction_repository import (
+    get_user_transactions,
+)
 from app.services.market_data_service import get_current_prices_map
 
 logger = logging.getLogger(__name__)
@@ -46,7 +49,7 @@ def _build_positions(
 
     positions: list[dict] = []
     for entry in agg.values():
-        net_qty = round(entry["buy_qty"] - entry["sell_qty"], 8)
+        net_qty = entry["buy_qty"] - entry["sell_qty"]
         if net_qty <= 0:
             continue
         positions.append(
@@ -64,11 +67,7 @@ def get_portfolio_allocation(
     user_id: int,
 ) -> dict:
     """Compute per-asset allocation with current market prices."""
-    transactions = (
-        db.query(PortfolioTransaction)
-        .filter(PortfolioTransaction.user_id == user_id)
-        .all()
-    )
+    transactions = get_user_transactions(db, user_id)
     positions = _build_positions(transactions)
 
     if not positions:
@@ -85,7 +84,7 @@ def get_portfolio_allocation(
     total_value = 0.0
     for pos in positions:
         price = prices.get(pos["symbol"], 0.0)
-        value = round(pos["quantity"] * price, 2)
+        value = pos["quantity"] * price
         total_value += value
         assets.append(
             {
@@ -97,16 +96,25 @@ def get_portfolio_allocation(
             }
         )
 
-    total_value = round(total_value, 2)
-
     for asset in assets:
-        asset["weight"] = (
-            round(asset["value"] / total_value, 4) if total_value > 0 else None
-        )
+        asset["weight"] = asset["value"] / total_value if total_value > 0 else None
 
-    assets.sort(key=lambda a: a["value"], reverse=True)
+    assets.sort(key=lambda a: (-a["value"], a["symbol"]))
 
-    return {"total_value": total_value, "assets": assets}
+    return {
+        "total_value": round(total_value, 2),
+        "assets": [
+            {
+                "symbol": a["symbol"],
+                "quantity": round(a["quantity"], 8),
+                "price": a["price"],
+                "value": round(a["value"], 2),
+                "weight": round(a["weight"], 4) if a["weight"] is not None else None,
+                "asset_type": a["asset_type"],
+            }
+            for a in assets
+        ],
+    }
 
 
 def get_portfolio_exposure(
@@ -127,13 +135,16 @@ def get_portfolio_exposure(
 
     exposures: list[dict] = []
     for cls, value in class_values.items():
-        value = round(value, 2)
-        weight = round(value / total_value, 4) if total_value > 0 else None
+        weight = value / total_value if total_value > 0 else None
         exposures.append(
-            {"asset_class": cls, "value": value, "weight": weight}
+            {
+                "asset_class": cls,
+                "value": round(value, 2),
+                "weight": round(weight, 4) if weight is not None else None,
+            }
         )
 
-    exposures.sort(key=lambda e: e["value"], reverse=True)
+    exposures.sort(key=lambda e: (-e["value"], e["asset_class"]))
 
     return {"total_value": total_value, "exposures": exposures}
 
