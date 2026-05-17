@@ -39,6 +39,36 @@ def get_snapshots(
     )
 
 
+def get_latest_snapshot(
+    db: Session,
+    user_id: int,
+) -> PortfolioSnapshot | None:
+    """Return the single most recent snapshot, or None."""
+    return (
+        db.query(PortfolioSnapshot)
+        .filter(PortfolioSnapshot.user_id == user_id)
+        .order_by(PortfolioSnapshot.timestamp.desc())
+        .first()
+    )
+
+
+def get_closest_snapshot_at_or_before(
+    db: Session,
+    user_id: int,
+    target: datetime,
+) -> PortfolioSnapshot | None:
+    """Return the snapshot closest to *target* that is at or before it."""
+    return (
+        db.query(PortfolioSnapshot)
+        .filter(
+            PortfolioSnapshot.user_id == user_id,
+            PortfolioSnapshot.timestamp <= target,
+        )
+        .order_by(PortfolioSnapshot.timestamp.desc())
+        .first()
+    )
+
+
 def get_recent_snapshots(
     db: Session,
     user_id: int,
