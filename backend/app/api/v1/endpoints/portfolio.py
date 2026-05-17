@@ -9,20 +9,31 @@ from app.models.portfolio import PortfolioTransaction
 from app.models.user import User
 from app.repositories.portfolio_snapshot_repository import get_snapshots
 from app.schemas.analytics import (
+    AssetAllocationItem,
+    AssetClassExposureItem,
     PerformanceHistoryPoint,
     PerformanceHistoryResponse,
     PerformanceReturns,
     PerformanceSummaryResponse,
     PerformanceWindowReturn,
+    PortfolioAllocationResponse,
     PortfolioAnalyticsResponse,
+    PortfolioExposureResponse,
     SnapshotHistoryPoint,
     SnapshotHistoryResponse,
     SnapshotResponse,
+    TopPositionItem,
+    TopPositionsResponse,
 )
 from app.schemas.portfolio import (
     PortfolioSummaryResponse,
     TransactionCreate,
     TransactionResponse,
+)
+from app.services.allocation.portfolio_allocation_service import (
+    get_portfolio_allocation,
+    get_portfolio_exposure,
+    get_top_positions,
 )
 from app.services.analytics.portfolio_analytics import get_portfolio_analytics
 from app.services.performance.portfolio_performance_service import (
@@ -165,3 +176,58 @@ async def portfolio_performance_history(
     items = get_performance_history(db, current_user.id, range)
     points = [PerformanceHistoryPoint(**item) for item in items]
     return PerformanceHistoryResponse(range=range, points=points)
+
+
+@router.get("/allocation", response_model=PortfolioAllocationResponse)
+async def portfolio_allocation(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PortfolioAllocationResponse:
+    data = get_portfolio_allocation(db, current_user.id)
+    assets = [
+        AssetAllocationItem(
+            symbol=a["symbol"],
+            quantity=a["quantity"],
+            price=a["price"],
+            value=a["value"],
+            weight=a["weight"],
+        )
+        for a in data["assets"]
+    ]
+    return PortfolioAllocationResponse(total_value=data["total_value"], assets=assets)
+
+
+@router.get("/exposure", response_model=PortfolioExposureResponse)
+async def portfolio_exposure(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PortfolioExposureResponse:
+    data = get_portfolio_exposure(db, current_user.id)
+    exposures = [
+        AssetClassExposureItem(
+            asset_class=e["asset_class"],
+            value=e["value"],
+            weight=e["weight"],
+        )
+        for e in data["exposures"]
+    ]
+    return PortfolioExposureResponse(
+        total_value=data["total_value"], exposures=exposures
+    )
+
+
+@router.get("/top-positions", response_model=TopPositionsResponse)
+async def portfolio_top_positions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TopPositionsResponse:
+    items = get_top_positions(db, current_user.id)
+    positions = [
+        TopPositionItem(
+            symbol=p["symbol"],
+            value=p["value"],
+            weight=p["weight"],
+        )
+        for p in items
+    ]
+    return TopPositionsResponse(positions=positions)

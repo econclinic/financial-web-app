@@ -822,6 +822,44 @@ Performance logic uses persisted snapshots as source of truth. It does NOT call 
 
 **Not included:** Benchmark comparison, drawdown, volatility, Sharpe ratio, frontend work.
 
+### Phase G — Portfolio Allocation & Exposure API ✅
+
+**Goal:** Compute current portfolio composition — per-asset allocation weights, asset class exposure, and top positions — as a read-only analytics layer.
+
+1. Allocation service (`services/allocation/portfolio_allocation_service.py`) reads portfolio transactions, fetches current prices via `market_data_service`, and computes allocation.
+2. Per-asset allocation: `weight = value / total_portfolio_value`. Sorted descending by value.
+3. Exposure by asset class: aggregates asset values by class (crypto, equity, etc.) with class-level weights.
+4. Top positions: returns the 5 largest positions ranked by value.
+5. Three new endpoints:
+   - `GET /api/portfolio/allocation` — Per-asset allocation with weights
+   - `GET /api/portfolio/exposure` — Asset class exposure aggregation
+   - `GET /api/portfolio/top-positions` — Top 5 positions by value
+6. 20 unit tests covering service, API, edge cases.
+
+**Dependency flow:**
+
+```
+API
+↓
+Allocation Service
+↓
+Portfolio Repository + Market Data Service
+↓
+DB + Providers
+```
+
+**Architectural independence:** Allocation represents the **current** portfolio composition. It does NOT depend on the snapshot/performance system. Snapshots track **historical** portfolio state; allocation computes **live** composition from current prices.
+
+**Market data interaction:**
+- Uses `get_current_prices_map()` from the existing market data service
+- Does NOT call providers directly
+- Does NOT trigger market data refreshes or modify caching logic
+- Does NOT introduce new persistence layers
+
+**API contracts:** New endpoints only. No changes to existing endpoints.
+
+**Not included:** Portfolio rebalancing recommendations, risk-weighted allocation, sector/geographic exposure.
+
 ### Future — Cache Hardening (Planned)
 
 **Goal:** Replace ad-hoc caching with the unified cache layer.
@@ -878,13 +916,14 @@ Performance logic uses persisted snapshots as source of truth. It does NOT call 
 | **D — Portfolio Analytics** | Analytics engine, metrics, allocation | Phases A–C | ✅ PR #24 |
 | **E — Portfolio Snapshots** | Snapshot model, history API, snapshot service | Phase D | ✅ PR #25 |
 | **F — Portfolio Performance** | Performance returns, closest-snapshot logic | Phase E | ✅ PR #26 |
+| **G — Portfolio Allocation** | Asset allocation, exposure, top positions | Phases A–D | ✅ PR #27 |
 | **Cache Hardening** | Unified caching, coalescing, circuit breaker | Phase A | Planned |
 | **Health & Monitoring** | Background jobs, logging | Phases A–D | Planned |
 | **FRED** | Macroeconomic data | Phase A, FRED API key | Planned |
 | **News** | News feed | Phase A | Future |
 | **International** | Twelve Data, multi-provider | Phase A+B | Future |
 
-Phases A–F have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
+Phases A–G have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
 
 ---
 
@@ -1168,6 +1207,29 @@ Dependency flow: API → Performance Service → Snapshot Repository → Snapsho
 
 ---
 
+## Implemented: Portfolio Allocation & Exposure API (Phase G)
+
+**PR:** [#27](https://github.com/econclinic/financial-web-app/pull/27)
+
+Read-only analytics layer computing current portfolio composition from positions and market prices.
+
+### New files
+
+- `app/services/allocation/__init__.py`
+- `app/services/allocation/portfolio_allocation_service.py` — Allocation, exposure, and top positions computation
+- `tests/test_portfolio_allocation.py` — 20 tests
+
+### Modified files
+
+- `app/schemas/analytics.py` — Added allocation, exposure, and top position response schemas
+- `app/api/v1/endpoints/portfolio.py` — Added `GET /allocation`, `GET /exposure`, `GET /top-positions` endpoints
+- `PROJECT_CONTEXT.md` — Phase G progress section
+- `MARKET_DATA_ARCHITECTURE_PROPOSAL.md` — Phase G architecture and roadmap update
+
+Dependency flow: API → Allocation Service → Portfolio Repository + Market Data Service. Independent from snapshot/performance system.
+
+---
+
 ## Summary
 
 This architecture transforms the current monolithic market data integration (CoinGecko hardcoded + mock data) into a modular, provider-agnostic system that:
@@ -1182,3 +1244,4 @@ This architecture transforms the current monolithic market data integration (Coi
 - **Computes** portfolio analytics (value, PnL, allocation, diversification) through a clean analytics layer built on the provider abstraction.
 - **Tracks** portfolio value over time via lightweight snapshots that consume analytics outputs, with a history API for charting.
 - **Computes** portfolio performance returns (7d, 30d, 90d, 1y) from stored snapshots without re-querying market data.
+- **Analyzes** portfolio composition through per-asset allocation weights, asset class exposure, and top position rankings.
