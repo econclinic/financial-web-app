@@ -53,3 +53,23 @@ class PortfolioAnalyticsResponse(BaseModel):
     return_pct: float
     allocation: list[AllocationEntry]
     diversification: DiversificationInfo
+
+
+class SnapshotResponse(BaseModel):
+    timestamp: str
+    total_value: float
+    total_cost: float
+    total_pnl: float
+    asset_count: int
+
+    model_config = {"from_attributes": True}
+
+
+class SnapshotHistoryPoint(BaseModel):
+    timestamp: str
+    value: float
+
+
+class SnapshotHistoryResponse(BaseModel):
+    range: str
+    points: list[SnapshotHistoryPoint]

@@ -853,6 +853,17 @@ Introduced a dedicated analytics layer that computes portfolio performance metri
 - Handles edge cases gracefully: empty portfolios return zeros, missing prices excluded from value calculations
 - 38 unit tests covering metrics, allocation, normalization, orchestration, and edge cases
 
+#### Phase E — Portfolio Snapshot & History API (PR #25)
+
+Introduced portfolio history tracking through a lightweight snapshot system that records portfolio value over time:
+
+- Created `PortfolioSnapshot` model storing computed metrics (total value, cost, PnL, asset count) per timestamp
+- Snapshot creation service reuses the existing analytics engine — does not recompute metrics or call providers directly
+- Introduced `repositories/` layer for clean data access separation
+- New endpoints: `POST /api/portfolio/snapshot` (manual snapshot creation), `GET /api/portfolio/history` (timeseries read with range filtering: 7d, 30d, 90d, 1y)
+- Snapshots store computed portfolio metrics, not raw transactions
+- 16 unit tests covering repository operations, service orchestration, API endpoints, range filtering, user isolation, and edge cases
+
 > **Detailed architecture documentation:** See [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for full design decisions, data contracts, caching strategy, error handling model, and implementation details.
 
 ---

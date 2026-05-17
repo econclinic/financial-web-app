@@ -758,6 +758,39 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Low. Entirely new module — no existing behavior affected.
 
+### Phase E — Portfolio Snapshot & History API ✅
+
+**Goal:** Introduce portfolio history tracking by recording portfolio value over time and exposing a history API for charting.
+
+1. Created `PortfolioSnapshot` model (`id`, `user_id`, `timestamp`, `total_value`, `total_cost`, `total_pnl`, `asset_count`).
+2. Snapshot creation service (`services/portfolio_snapshot_service.py`) reuses the existing analytics engine — does not recompute metrics or call providers directly.
+3. Snapshot repository (`repositories/portfolio_snapshot_repository.py`) for clean data access with time-range queries and ordering.
+4. New endpoints:
+   - `POST /api/portfolio/snapshot` — Manual snapshot creation, returns the persisted snapshot.
+   - `GET /api/portfolio/history?range=7d|30d|90d|1y` — Returns portfolio value timeseries from stored snapshots.
+5. History API is a pure read layer — only returns stored snapshots, never recomputes analytics.
+6. 16 unit tests covering repository, service, endpoints, range filtering, user isolation, and edge cases.
+
+**Dependency flow:**
+
+```
+API
+↓
+Portfolio Snapshot / History API
+↓
+Portfolio Analytics Engine
+↓
+Market Data Service
+↓
+Providers
+```
+
+Snapshots consume analytics outputs only. No direct provider access. No analytics duplication.
+
+**API contracts:** New endpoints only. No changes to existing endpoints.
+
+**Not included:** Background workers, scheduled jobs, Redis, WebSocket, historical price reconstruction.
+
 ### Future — Cache Hardening (Planned)
 
 **Goal:** Replace ad-hoc caching with the unified cache layer.
@@ -812,13 +845,14 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 | **B — Finnhub** | Real stock data, provider registry | Phase A | ✅ PR #21 |
 | **C — Reliability & Observability** | Structured logging, error classification | Phase B | ✅ PR #22 |
 | **D — Portfolio Analytics** | Analytics engine, metrics, allocation | Phases A–C | ✅ PR #24 |
+| **E — Portfolio Snapshots** | Snapshot model, history API, snapshot service | Phase D | ✅ PR #25 |
 | **Cache Hardening** | Unified caching, coalescing, circuit breaker | Phase A | Planned |
 | **Health & Monitoring** | Background jobs, logging | Phases A–D | Planned |
 | **FRED** | Macroeconomic data | Phase A, FRED API key | Planned |
 | **News** | News feed | Phase A | Future |
 | **International** | Twelve Data, multi-provider | Phase A+B | Future |
 
-Phases A–D have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
+Phases A–E have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
 
 ---
 
@@ -1053,6 +1087,31 @@ No changes to: existing API responses, service layer interfaces, provider regist
 
 ---
 
+## Implemented: Portfolio Snapshot & History API (Phase E)
+
+**PR:** [#25](https://github.com/econclinic/financial-web-app/pull/25)
+
+The analytics engine's outputs are now consumed by a snapshot system that records portfolio value over time.
+
+### New files
+
+- `app/models/portfolio_snapshot.py` — `PortfolioSnapshot` SQLAlchemy model
+- `app/repositories/__init__.py`
+- `app/repositories/portfolio_snapshot_repository.py` — Data access helpers (save, range query, recent query)
+- `app/services/portfolio_snapshot_service.py` — Snapshot creation orchestrator (analytics → persistence)
+- `tests/test_portfolio_snapshots.py` — 16 tests
+
+### Modified files
+
+- `app/schemas/analytics.py` — Added `SnapshotResponse`, `SnapshotHistoryPoint`, `SnapshotHistoryResponse`
+- `app/api/v1/endpoints/portfolio.py` — Added `POST /snapshot` and `GET /history` endpoints
+- `PROJECT_CONTEXT.md` — Phase E progress section
+- `MARKET_DATA_ARCHITECTURE_PROPOSAL.md` — Phase E architecture and roadmap update
+
+Snapshots reuse `get_portfolio_analytics()` directly. No direct provider access, no analytics duplication.
+
+---
+
 ## Summary
 
 This architecture transforms the current monolithic market data integration (CoinGecko hardcoded + mock data) into a modular, provider-agnostic system that:
@@ -1065,3 +1124,4 @@ This architecture transforms the current monolithic market data integration (Coi
 - **Scales** from free-tier development to paid production without architectural changes.
 - **Preserves** all existing API contracts — the frontend continues working unchanged throughout the migration.
 - **Computes** portfolio analytics (value, PnL, allocation, diversification) through a clean analytics layer built on the provider abstraction.
+- **Tracks** portfolio value over time via lightweight snapshots that consume analytics outputs, with a history API for charting.
