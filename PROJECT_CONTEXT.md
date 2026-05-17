@@ -841,6 +841,18 @@ Improved production readiness with structured logging and error classification:
 
 These improvements enable production debugging and provider monitoring without adding infrastructure complexity.
 
+#### Phase D — Portfolio Analytics Engine (PR #24)
+
+Introduced a dedicated analytics layer that computes portfolio performance metrics using the market data provider system:
+
+- Created `app/services/analytics/` package with clear separation of concerns: `metrics.py` (pure calculations), `allocation.py` (weights and diversification), `portfolio_analytics.py` (orchestrator)
+- Analytics layer depends only on `market_data_service` — never imports provider modules directly
+- Normalizes DB transactions into `PortfolioPosition` dataclass inside the analytics layer (no DB schema changes)
+- Single `market_data_service` call per analytics request
+- New endpoint: `GET /api/portfolio/analytics` returning total value, cost basis, PnL, return %, allocation weights, and diversification metrics
+- Handles edge cases gracefully: empty portfolios return zeros, missing prices excluded from value calculations
+- 38 unit tests covering metrics, allocation, normalization, orchestration, and edge cases
+
 > **Detailed architecture documentation:** See [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for full design decisions, data contracts, caching strategy, error handling model, and implementation details.
 
 ---
@@ -872,7 +884,7 @@ Phase 7 was implemented on:
 |---|---|---|---|
 | 1 | Portfolio Module | Done | Record transactions, view positions, P&L, and allocation chart. |
 | 2 | Watchlist | Done | Track favourite symbols with live prices. Add/remove symbols, duplicate prevention, user isolation. |
-| 3 | Real Market Data Providers | In Progress | Provider abstraction layer with CoinGecko (crypto) and Finnhub (US stocks). Registry-based routing, structured logging, observability. See [architecture docs](MARKET_DATA_ARCHITECTURE_PROPOSAL.md). |
+| 3 | Real Market Data Providers | In Progress | Provider abstraction layer with CoinGecko (crypto) and Finnhub (US stocks). Registry-based routing, structured logging, observability. Portfolio analytics engine. See [architecture docs](MARKET_DATA_ARCHITECTURE_PROPOSAL.md). |
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
 | 5 | Price Alerts | Done | Simple one-time trigger alerts with background worker (60s). Triggered state visible in UI. |
 | 5b | Notifications (MVP) | Done | In-app notifications triggered by price alerts. Read/unread state, navbar badge, dedicated page. |
