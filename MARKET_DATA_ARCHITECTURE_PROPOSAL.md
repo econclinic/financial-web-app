@@ -738,7 +738,27 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Low. Entirely new endpoints — no existing behavior affected.
 
-### Phase D — Cache Hardening (Planned)
+### Phase D — Portfolio Analytics Engine ✅
+
+**Goal:** Introduce a portfolio analytics layer that calculates performance metrics using normalized market data from `market_data_service`.
+
+1. Create `app/services/analytics/` package with separated concerns:
+   - `metrics.py` — Pure calculation functions (position value, portfolio value, cost basis, PnL, return %)
+   - `allocation.py` — Allocation weights, largest position, asset count
+   - `portfolio_analytics.py` — Orchestrator (retrieves positions, normalizes, fetches prices, assembles response)
+2. Normalize DB transactions into `PortfolioPosition` dataclass inside the analytics layer (no DB schema changes).
+3. Single `market_data_service.get_current_prices_map()` call per analytics request — no direct provider imports.
+4. New endpoint: `GET /api/portfolio/analytics` returning total value, cost, PnL, return %, allocation, diversification.
+5. Graceful handling of empty portfolios (zeros) and missing prices (excluded from value/allocation).
+6. 38 unit tests covering metrics, allocation, normalization, orchestration, and edge cases.
+
+**Dependency flow:** API → analytics layer → `market_data_service` → providers. Analytics never imports provider modules.
+
+**API contract:** New endpoint only. No changes to existing endpoints.
+
+**Risk:** Low. Entirely new module — no existing behavior affected.
+
+### Future — Cache Hardening (Planned)
 
 **Goal:** Replace ad-hoc caching with the unified cache layer.
 
@@ -750,7 +770,7 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Medium. Touches existing cache behavior. Requires careful testing to ensure no regressions.
 
-### Phase E — Health Monitoring & Background Jobs (Planned)
+### Future — Health Monitoring & Background Jobs (Planned)
 
 **Goal:** Add operational visibility and proactive cache warming.
 
@@ -761,7 +781,7 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Low. Additive operational improvements.
 
-### Phase F — News Integration (Future)
+### Future — News Integration
 
 **Goal:** Add financial news feed.
 
@@ -772,7 +792,7 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 
 **Risk:** Low. New feature, no existing behavior affected.
 
-### Phase G — International Stocks & Advanced Features (Future)
+### Future — International Stocks & Advanced Features
 
 **Goal:** Expand coverage beyond US markets.
 
@@ -791,13 +811,14 @@ This ensures that when a proper observability stack is introduced (Prometheus, G
 | **A — Foundation** | Provider layer, cache abstraction | None | ✅ PR #20 |
 | **B — Finnhub** | Real stock data, provider registry | Phase A | ✅ PR #21 |
 | **C — Reliability & Observability** | Structured logging, error classification | Phase B | ✅ PR #22 |
-| **D — Cache Hardening** | Unified caching, coalescing, circuit breaker | Phase A | Planned |
-| **E — Health & Monitoring** | Background jobs, logging | Phases A–D | Planned |
-| **F — FRED** | Macroeconomic data | Phase A, FRED API key | Planned |
-| **G — News** | News feed | Phase A | Future |
-| **H — International** | Twelve Data, multi-provider | Phase A+B | Future |
+| **D — Portfolio Analytics** | Analytics engine, metrics, allocation | Phases A–C | ✅ PR #24 |
+| **Cache Hardening** | Unified caching, coalescing, circuit breaker | Phase A | Planned |
+| **Health & Monitoring** | Background jobs, logging | Phases A–D | Planned |
+| **FRED** | Macroeconomic data | Phase A, FRED API key | Planned |
+| **News** | News feed | Phase A | Future |
+| **International** | Twelve Data, multi-provider | Phase A+B | Future |
 
-Phases A–C have been implemented and merged. Phases D–E harden the system. Phases F–H extend coverage as the product grows.
+Phases A–D have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
 
 ---
 
@@ -971,6 +992,67 @@ No changes to: API responses, service layer interfaces, provider registry, cache
 
 ---
 
+## Implemented: Portfolio Analytics Engine (Phase D)
+
+### Purpose
+
+Phase D introduces a portfolio analytics layer that computes performance metrics from existing portfolio positions and normalized market data. The analytics engine sits between the API layer and the market data service, preserving the provider abstraction established in Phases A–C.
+
+### Architecture
+
+```
+GET /api/portfolio/analytics
+    │
+    ▼
+portfolio_analytics.py (orchestrator)
+    │
+    ├── DB: PortfolioTransaction → _normalize_positions() → PortfolioPosition
+    │
+    ├── market_data_service.get_current_prices_map(symbols)  ← single call
+    │
+    ├── metrics.py: calculate_portfolio_value, calculate_total_cost,
+    │               calculate_total_pnl, calculate_return_pct
+    │
+    └── allocation.py: calculate_allocation, largest_position_weight, asset_count
+```
+
+### Key Design Decisions
+
+- **Provider isolation preserved** — Analytics imports `market_data_service` only, never provider modules
+- **Normalization inside analytics** — DB `asset_type="stock"` mapped to `"equity"` in the analytics layer; no DB schema changes
+- **Pure calculation functions** — `metrics.py` and `allocation.py` are stateless, side-effect-free, trivially testable
+- **Single market data call** — One `get_current_prices_map()` call per analytics request
+- **Graceful degradation** — Missing prices: positions excluded from value/allocation but counted in diversification; empty portfolio returns zeros; market data failure caught and returns zero values
+
+### Metrics Calculated
+
+| Metric | Description |
+|--------|-------------|
+| `total_value` | Sum of (quantity × current price) for positions with available prices |
+| `total_cost` | Sum of (quantity × avg cost) across all positions |
+| `total_pnl` | `total_value - total_cost` |
+| `return_pct` | `(total_pnl / total_cost) × 100` |
+| `allocation` | Per-symbol weight = position value / total value (sorted descending, sums to 1.0) |
+| `diversification.asset_count` | Number of active positions |
+| `diversification.largest_position_pct` | Weight of the largest position |
+
+### Implementation Scope
+
+New files:
+- `app/services/analytics/__init__.py`
+- `app/services/analytics/metrics.py` — Pure financial calculation functions
+- `app/services/analytics/allocation.py` — Allocation and diversification
+- `app/services/analytics/portfolio_analytics.py` — Orchestrator
+- `app/schemas/analytics.py` — Extended with `PortfolioAnalyticsResponse`
+- `tests/test_portfolio_analytics.py` — 38 tests
+
+Modified files:
+- `app/api/v1/endpoints/portfolio.py` — Added `GET /analytics` endpoint
+
+No changes to: existing API responses, service layer interfaces, provider registry, cache behavior, database models, or frontend.
+
+---
+
 ## Summary
 
 This architecture transforms the current monolithic market data integration (CoinGecko hardcoded + mock data) into a modular, provider-agnostic system that:
@@ -982,3 +1064,4 @@ This architecture transforms the current monolithic market data integration (Coi
 - **Degrades gracefully** when providers fail (cached data → mock data → clear errors).
 - **Scales** from free-tier development to paid production without architectural changes.
 - **Preserves** all existing API contracts — the frontend continues working unchanged throughout the migration.
+- **Computes** portfolio analytics (value, PnL, allocation, diversification) through a clean analytics layer built on the provider abstraction.

@@ -34,3 +34,22 @@ class HistoryPoint(BaseModel):
 class PortfolioHistoryResponse(BaseModel):
     range: str
     data: list[HistoryPoint]
+
+
+class AllocationEntry(BaseModel):
+    symbol: str
+    weight: float
+
+
+class DiversificationInfo(BaseModel):
+    asset_count: int
+    largest_position_pct: float
+
+
+class PortfolioAnalyticsResponse(BaseModel):
+    total_value: float
+    total_cost: float
+    total_pnl: float
+    return_pct: float
+    allocation: list[AllocationEntry]
+    diversification: DiversificationInfo
