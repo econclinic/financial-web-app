@@ -9,6 +9,11 @@ from app.models.portfolio import PortfolioTransaction
 from app.models.user import User
 from app.repositories.portfolio_snapshot_repository import get_snapshots
 from app.schemas.analytics import (
+    PerformanceHistoryPoint,
+    PerformanceHistoryResponse,
+    PerformanceReturns,
+    PerformanceSummaryResponse,
+    PerformanceWindowReturn,
     PortfolioAnalyticsResponse,
     SnapshotHistoryPoint,
     SnapshotHistoryResponse,
@@ -20,12 +25,23 @@ from app.schemas.portfolio import (
     TransactionResponse,
 )
 from app.services.analytics.portfolio_analytics import get_portfolio_analytics
+from app.services.performance.portfolio_performance_service import (
+    get_performance_history,
+    get_performance_summary,
+)
 from app.services.portfolio import (
     create_transaction,
     get_portfolio_summary,
     get_transactions,
 )
 from app.services.portfolio_snapshot_service import create_snapshot
+
+_WINDOW_KEY_TO_FIELD: dict[str, str] = {
+    "7d": "seven_d",
+    "30d": "thirty_d",
+    "90d": "ninety_d",
+    "1y": "one_y",
+}
 
 router = APIRouter()
 
@@ -109,3 +125,43 @@ async def portfolio_history_snapshots(
         for s in snapshots
     ]
     return SnapshotHistoryResponse(range=range, points=points)
+
+
+@router.get("/performance", response_model=PerformanceSummaryResponse)
+async def portfolio_performance(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PerformanceSummaryResponse:
+    summary = get_performance_summary(db, current_user.id)
+    if summary is None:
+        return PerformanceSummaryResponse(
+            current_value=0.0,
+            as_of="",
+            returns=PerformanceReturns(),
+        )
+    returns_data: dict[str, PerformanceWindowReturn | None] = {}
+    for key, field_name in _WINDOW_KEY_TO_FIELD.items():
+        raw = summary["returns"].get(key)
+        returns_data[field_name] = (
+            PerformanceWindowReturn(**raw) if raw is not None else None
+        )
+    return PerformanceSummaryResponse(
+        current_value=summary["current_value"],
+        as_of=summary["as_of"],
+        returns=PerformanceReturns(**returns_data),
+    )
+
+
+@router.get("/performance/history", response_model=PerformanceHistoryResponse)
+async def portfolio_performance_history(
+    range: str = Query(
+        default="30d",
+        pattern="^(7d|30d|90d|1y)$",
+        description="Time range: 7d, 30d, 90d, or 1y",
+    ),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PerformanceHistoryResponse:
+    items = get_performance_history(db, current_user.id, range)
+    points = [PerformanceHistoryPoint(**item) for item in items]
+    return PerformanceHistoryResponse(range=range, points=points)

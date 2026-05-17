@@ -864,6 +864,17 @@ Introduced portfolio history tracking through a lightweight snapshot system that
 - Snapshots store computed portfolio metrics, not raw transactions
 - 16 unit tests covering repository operations, service orchestration, API endpoints, range filtering, user isolation, and edge cases
 
+#### Phase F — Portfolio Performance API (PR #26)
+
+Introduced a performance layer that computes portfolio return metrics from persisted snapshots:
+
+- Created `app/services/performance/portfolio_performance_service.py` — computes absolute and percentage returns for 7d, 30d, 90d, 1y windows
+- Performance calculations use stored snapshots as source of truth — does not call market data providers, analytics engine, or transaction replay
+- Uses closest-snapshot-at-or-before logic when no snapshot exists at the exact cutoff time; returns `null` for windows with insufficient data
+- Extended snapshot repository with `get_latest_snapshot` and `get_closest_snapshot_at_or_before` helpers
+- New endpoints: `GET /api/portfolio/performance` (return summary), `GET /api/portfolio/performance/history` (timeseries with range filtering)
+- 20 unit tests covering service logic, repository helpers, API endpoints, range filtering, user isolation, and edge cases
+
 > **Detailed architecture documentation:** See [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for full design decisions, data contracts, caching strategy, error handling model, and implementation details.
 
 ---

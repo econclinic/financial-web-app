@@ -791,6 +791,37 @@ Snapshots consume analytics outputs only. No direct provider access. No analytic
 
 **Not included:** Background workers, scheduled jobs, Redis, WebSocket, historical price reconstruction.
 
+### Phase F — Portfolio Performance API ✅
+
+**Goal:** Build a performance layer that uses stored portfolio snapshots to compute and expose return metrics. No market data calls, no analytics recomputation.
+
+1. Performance service (`services/performance/portfolio_performance_service.py`) reads snapshots from the repository and computes return metrics.
+2. Supports 7d, 30d, 90d, 1y return windows with absolute change and percentage return.
+3. Uses closest-snapshot-at-or-before logic: if no snapshot exists at the exact cutoff, selects the most recent prior snapshot. Returns `null` if no suitable snapshot exists for a window.
+4. Extended snapshot repository with `get_latest_snapshot` and `get_closest_snapshot_at_or_before` helpers.
+5. New endpoints:
+   - `GET /api/portfolio/performance` — Returns current value and return metrics for all windows.
+   - `GET /api/portfolio/performance/history?range=7d|30d|90d|1y` — Returns snapshot timeseries with `total_value`, `total_cost`, `total_pnl`.
+6. 20 unit tests covering service, repository, endpoints, and edge cases.
+
+**Dependency flow:**
+
+```
+API
+↓
+Performance Service
+↓
+Snapshot Repository
+↓
+Snapshot Table
+```
+
+Performance logic uses persisted snapshots as source of truth. It does NOT call `market_data_service`, providers, or `get_portfolio_analytics()`.
+
+**API contracts:** New endpoints only. No changes to existing endpoints.
+
+**Not included:** Benchmark comparison, drawdown, volatility, Sharpe ratio, frontend work.
+
 ### Future — Cache Hardening (Planned)
 
 **Goal:** Replace ad-hoc caching with the unified cache layer.
@@ -846,13 +877,14 @@ Snapshots consume analytics outputs only. No direct provider access. No analytic
 | **C — Reliability & Observability** | Structured logging, error classification | Phase B | ✅ PR #22 |
 | **D — Portfolio Analytics** | Analytics engine, metrics, allocation | Phases A–C | ✅ PR #24 |
 | **E — Portfolio Snapshots** | Snapshot model, history API, snapshot service | Phase D | ✅ PR #25 |
+| **F — Portfolio Performance** | Performance returns, closest-snapshot logic | Phase E | ✅ PR #26 |
 | **Cache Hardening** | Unified caching, coalescing, circuit breaker | Phase A | Planned |
 | **Health & Monitoring** | Background jobs, logging | Phases A–D | Planned |
 | **FRED** | Macroeconomic data | Phase A, FRED API key | Planned |
 | **News** | News feed | Phase A | Future |
 | **International** | Twelve Data, multi-provider | Phase A+B | Future |
 
-Phases A–E have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
+Phases A–F have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
 
 ---
 
@@ -1112,6 +1144,30 @@ Snapshots reuse `get_portfolio_analytics()` directly. No direct provider access,
 
 ---
 
+## Implemented: Portfolio Performance API (Phase F)
+
+**PR:** [#26](https://github.com/econclinic/financial-web-app/pull/26)
+
+Performance metrics are computed from persisted snapshots — no market data calls, no analytics recomputation.
+
+### New files
+
+- `app/services/performance/__init__.py`
+- `app/services/performance/portfolio_performance_service.py` — Return computation with closest-snapshot-at-or-before logic
+- `tests/test_portfolio_performance.py` — 20 tests
+
+### Modified files
+
+- `app/repositories/portfolio_snapshot_repository.py` — Added `get_latest_snapshot` and `get_closest_snapshot_at_or_before`
+- `app/schemas/analytics.py` — Added performance response schemas
+- `app/api/v1/endpoints/portfolio.py` — Added `GET /performance` and `GET /performance/history` endpoints
+- `PROJECT_CONTEXT.md` — Phase F progress section
+- `MARKET_DATA_ARCHITECTURE_PROPOSAL.md` — Phase F architecture and roadmap update
+
+Dependency flow: API → Performance Service → Snapshot Repository → Snapshot Table.
+
+---
+
 ## Summary
 
 This architecture transforms the current monolithic market data integration (CoinGecko hardcoded + mock data) into a modular, provider-agnostic system that:
@@ -1125,3 +1181,4 @@ This architecture transforms the current monolithic market data integration (Coi
 - **Preserves** all existing API contracts — the frontend continues working unchanged throughout the migration.
 - **Computes** portfolio analytics (value, PnL, allocation, diversification) through a clean analytics layer built on the provider abstraction.
 - **Tracks** portfolio value over time via lightweight snapshots that consume analytics outputs, with a history API for charting.
+- **Computes** portfolio performance returns (7d, 30d, 90d, 1y) from stored snapshots without re-querying market data.
