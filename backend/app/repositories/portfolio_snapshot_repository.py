@@ -69,6 +69,19 @@ def get_closest_snapshot_at_or_before(
     )
 
 
+def get_all_snapshots(
+    db: Session,
+    user_id: int,
+) -> list[PortfolioSnapshot]:
+    """Return all snapshots for a user, ordered by timestamp ascending."""
+    return (
+        db.query(PortfolioSnapshot)
+        .filter(PortfolioSnapshot.user_id == user_id)
+        .order_by(PortfolioSnapshot.timestamp.asc())
+        .all()
+    )
+
+
 def get_recent_snapshots(
     db: Session,
     user_id: int,

@@ -860,6 +860,42 @@ DB + Providers
 
 **Not included:** Portfolio rebalancing recommendations, risk-weighted allocation, sector/geographic exposure.
 
+### Phase H — Portfolio Performance Engine ✅
+
+**Goal:** Comprehensive portfolio performance analytics — range-based returns with max drawdown, per-asset PnL contribution, and best/worst performers.
+
+1. Performance engine (`services/analytics/portfolio_performance_engine.py`) provides three analytics functions:
+   - `get_range_performance(db, user_id, range)` — returns, drawdown from snapshots
+   - `get_contribution(db, user_id)` — per-asset PnL contribution from current positions
+   - `get_performers(db, user_id, limit)` — best/worst by return from current positions
+2. Portfolio-level performance uses stored snapshots as historical source of truth
+3. Contribution and performers use current positions + market prices via `market_data_service`
+4. Max drawdown computed using running peak algorithm over snapshot value sequence
+5. Three endpoints:
+   - `GET /api/portfolio/performance?range=7d|30d|90d|1y|all` — Range performance summary with drawdown
+   - `GET /api/portfolio/contribution` — Per-asset PnL contribution breakdown
+   - `GET /api/portfolio/performers?limit=5` — Best and worst performers by return
+6. 31 unit tests covering all calculation paths and edge cases.
+
+**Dependency flow:**
+
+```
+Performance Summary:
+  API → Performance Engine → Snapshot Repository → DB
+
+Contribution / Performers:
+  API → Performance Engine → Transaction Repository + Market Data Service → DB + Providers
+```
+
+**Calculation rules:**
+- `total_return = (ending_value - starting_value) / starting_value` (0.0 when starting_value ≤ 0)
+- `max_drawdown = min((current - peak) / peak)` across snapshot sequence (0.0 when < 2 snapshots)
+- `contribution_weight = asset_contribution / total_contribution` (0.0 when total is 0)
+- `return = pnl / cost_basis` (0.0 when cost_basis ≤ 0)
+- Full precision internally; rounding at response boundary only
+
+**Not included:** Sharpe ratio, volatility, beta, TWR/IRR, benchmark comparison, tax-lot accounting.
+
 ### Future — Cache Hardening (Planned)
 
 **Goal:** Replace ad-hoc caching with the unified cache layer.

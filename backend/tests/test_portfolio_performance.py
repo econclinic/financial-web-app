@@ -259,17 +259,16 @@ def test_performance_endpoint_structure():
     finally:
         db.close()
 
-    resp = client.get("/api/portfolio/performance", headers=_auth(token))
+    resp = client.get("/api/portfolio/performance?range=30d", headers=_auth(token))
     assert resp.status_code == 200
     data = resp.json()
-    assert "current_value" in data
-    assert "as_of" in data
-    assert "returns" in data
-    returns = data["returns"]
-    assert "seven_d" in returns
-    assert "thirty_d" in returns
-    assert "ninety_d" in returns
-    assert "one_y" in returns
+    assert "range" in data
+    assert "starting_value" in data
+    assert "ending_value" in data
+    assert "absolute_return" in data
+    assert "total_return" in data
+    assert "max_drawdown" in data
+    assert "snapshot_count" in data
 
 
 def test_performance_endpoint_empty():
@@ -279,7 +278,8 @@ def test_performance_endpoint_empty():
     resp = client.get("/api/portfolio/performance", headers=_auth(token))
     assert resp.status_code == 200
     data = resp.json()
-    assert data["current_value"] == 0.0
+    assert data["starting_value"] == 0.0
+    assert data["snapshot_count"] == 0
 
 
 def test_performance_endpoint_unauthenticated():
