@@ -886,6 +886,17 @@ Introduced a read-only allocation analytics layer that computes current portfoli
 - New endpoints: `GET /api/portfolio/allocation`, `GET /api/portfolio/exposure`, `GET /api/portfolio/top-positions`
 - 20 unit tests covering allocation calculation, exposure aggregation, top positions ranking, edge cases, sorting, and API endpoints
 
+#### Phase H — Portfolio Performance Engine (PR #28)
+
+Introduced a comprehensive portfolio performance analytics engine:
+
+- Created `app/services/analytics/portfolio_performance_engine.py` — computes range-based returns, max drawdown, per-asset PnL contribution, and best/worst performers
+- Portfolio-level performance uses stored snapshots as source of truth; contribution/performers use current positions + market prices
+- Enhanced `GET /api/portfolio/performance?range=` with drawdown metrics and `all` range support
+- New endpoints: `GET /api/portfolio/contribution` (per-asset PnL breakdown), `GET /api/portfolio/performers?limit=` (best/worst by return)
+- Max drawdown computed from snapshot value sequence using running peak algorithm
+- 31 unit tests covering drawdown calculation, range performance, contribution weights, performer ranking, edge cases, and API endpoints
+
 > **Detailed architecture documentation:** See [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for full design decisions, data contracts, caching strategy, error handling model, and implementation details.
 
 ---

@@ -11,14 +11,16 @@ from app.repositories.portfolio_snapshot_repository import get_snapshots
 from app.schemas.analytics import (
     AssetAllocationItem,
     AssetClassExposureItem,
+    ContributionItem,
+    ContributionResponse,
     PerformanceHistoryPoint,
     PerformanceHistoryResponse,
-    PerformanceReturns,
-    PerformanceSummaryResponse,
-    PerformanceWindowReturn,
+    PerformerItem,
+    PerformersResponse,
     PortfolioAllocationResponse,
     PortfolioAnalyticsResponse,
     PortfolioExposureResponse,
+    PortfolioPerformanceSummary,
     SnapshotHistoryPoint,
     SnapshotHistoryResponse,
     SnapshotResponse,
@@ -36,9 +38,13 @@ from app.services.allocation.portfolio_allocation_service import (
     get_top_positions,
 )
 from app.services.analytics.portfolio_analytics import get_portfolio_analytics
+from app.services.analytics.portfolio_performance_engine import (
+    get_contribution,
+    get_performers,
+    get_range_performance,
+)
 from app.services.performance.portfolio_performance_service import (
     get_performance_history,
-    get_performance_summary,
 )
 from app.services.portfolio import (
     create_transaction,
@@ -46,13 +52,6 @@ from app.services.portfolio import (
     get_transactions,
 )
 from app.services.portfolio_snapshot_service import create_snapshot
-
-_WINDOW_KEY_TO_FIELD: dict[str, str] = {
-    "7d": "seven_d",
-    "30d": "thirty_d",
-    "90d": "ninety_d",
-    "1y": "one_y",
-}
 
 router = APIRouter()
 
@@ -138,28 +137,29 @@ async def portfolio_history_snapshots(
     return SnapshotHistoryResponse(range=range, points=points)
 
 
-@router.get("/performance", response_model=PerformanceSummaryResponse)
+@router.get("/performance", response_model=PortfolioPerformanceSummary)
 async def portfolio_performance(
+    range: str = Query(
+        default="30d",
+        pattern="^(7d|30d|90d|1y|all)$",
+        description="Time range: 7d, 30d, 90d, 1y, or all",
+    ),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> PerformanceSummaryResponse:
-    summary = get_performance_summary(db, current_user.id)
-    if summary is None:
-        return PerformanceSummaryResponse(
-            current_value=0.0,
-            as_of="",
-            returns=PerformanceReturns(),
-        )
-    returns_data: dict[str, PerformanceWindowReturn | None] = {}
-    for key, field_name in _WINDOW_KEY_TO_FIELD.items():
-        raw = summary["returns"].get(key)
-        returns_data[field_name] = (
-            PerformanceWindowReturn(**raw) if raw is not None else None
-        )
-    return PerformanceSummaryResponse(
-        current_value=summary["current_value"],
-        as_of=summary["as_of"],
-        returns=PerformanceReturns(**returns_data),
+) -> PortfolioPerformanceSummary:
+    data = get_range_performance(db, current_user.id, range)
+    return PortfolioPerformanceSummary(
+        range=data["range"],
+        start_timestamp=data["start_timestamp"],
+        end_timestamp=data["end_timestamp"],
+        starting_value=round(data["starting_value"], 2),
+        ending_value=round(data["ending_value"], 2),
+        absolute_return=round(data["absolute_return"], 2),
+        total_return=round(data["total_return"], 4),
+        total_return_pct=round(data["total_return_pct"], 2),
+        max_drawdown=round(data["max_drawdown"], 4),
+        max_drawdown_pct=round(data["max_drawdown_pct"], 2),
+        snapshot_count=data["snapshot_count"],
     )
 
 
@@ -231,3 +231,52 @@ async def portfolio_top_positions(
         for p in items
     ]
     return TopPositionsResponse(positions=positions)
+
+
+@router.get("/contribution", response_model=ContributionResponse)
+async def portfolio_contribution(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ContributionResponse:
+    data = get_contribution(db, current_user.id)
+    assets = [
+        ContributionItem(
+            symbol=a["symbol"],
+            asset_type=a["asset_type"],
+            value=a["value"],
+            cost_basis=a["cost_basis"],
+            pnl=a["pnl"],
+            contribution=a["contribution"],
+            contribution_weight=a["contribution_weight"],
+        )
+        for a in data["assets"]
+    ]
+    return ContributionResponse(
+        total_contribution=round(data["total_contribution"], 2),
+        assets=assets,
+    )
+
+
+@router.get("/performers", response_model=PerformersResponse)
+async def portfolio_performers(
+    limit: int = Query(default=5, ge=1, le=50, description="Number of performers"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PerformersResponse:
+    data = get_performers(db, current_user.id, limit)
+
+    def _to_item(p: dict) -> PerformerItem:
+        return PerformerItem(
+            symbol=p["symbol"],
+            asset_type=p["asset_type"],
+            value=p["value"],
+            cost_basis=p["cost_basis"],
+            pnl=p["pnl"],
+            return_val=p["return"],
+            return_pct=p["return_pct"],
+        )
+
+    return PerformersResponse(
+        best=[_to_item(p) for p in data["best"]],
+        worst=[_to_item(p) for p in data["worst"]],
+    )

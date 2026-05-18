@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SymbolPnl(BaseModel):
@@ -137,3 +137,47 @@ class TopPositionItem(BaseModel):
 
 class TopPositionsResponse(BaseModel):
     positions: list[TopPositionItem]
+
+
+class PortfolioPerformanceSummary(BaseModel):
+    range: str
+    start_timestamp: str | None = None
+    end_timestamp: str | None = None
+    starting_value: float
+    ending_value: float
+    absolute_return: float
+    total_return: float
+    total_return_pct: float
+    max_drawdown: float
+    max_drawdown_pct: float
+    snapshot_count: int
+
+
+class ContributionItem(BaseModel):
+    symbol: str
+    asset_type: str
+    value: float
+    cost_basis: float
+    pnl: float
+    contribution: float
+    contribution_weight: float
+
+
+class ContributionResponse(BaseModel):
+    total_contribution: float
+    assets: list[ContributionItem]
+
+
+class PerformerItem(BaseModel):
+    symbol: str
+    asset_type: str
+    value: float
+    cost_basis: float
+    pnl: float
+    return_val: float = Field(serialization_alias="return")
+    return_pct: float
+
+
+class PerformersResponse(BaseModel):
+    best: list[PerformerItem]
+    worst: list[PerformerItem]
