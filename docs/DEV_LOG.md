@@ -31,3 +31,9 @@
 - Increased banner slider vertical padding on mobile (`py-10` → `py-16`) for better hero visual
 - Added Gold, Silver, and S&P 500 (SPX) to backend market data layer (mock provider, service, quotes)
 - Filtered Live Market Prices to show spec'd 5 assets: BTC, ETH, Gold, Silver, S&P 500
+
+### 2026-05-19 — Sprint 1 Review Feedback (Round 2)
+
+- Fixed InsightsCarousel card heights: added `h-[140px] flex flex-col` + `line-clamp-3` for uniform cards
+- Fixed mock provider prices: switched from shared seeded RNG to per-symbol deterministic seeding so each asset gets distinct realistic prices that change hourly
+- Confirmed AllocationDonut data flow is correct — it reflects the user's actual portfolio positions
