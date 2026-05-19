@@ -7,6 +7,8 @@ import { useLocale } from "@/hooks/use-locale";
 import type { MarketQuote } from "@/lib/market-data";
 import { fetchLatestQuotes } from "@/lib/market-data";
 
+const HOME_SYMBOLS = ["BTC", "ETH", "GOLD", "SILVER", "SPX"];
+
 function formatPrice(price: number): string {
   return price.toLocaleString("en-US", {
     style: "currency",
@@ -27,7 +29,10 @@ export function LiveMarketPrices() {
     fetchLatestQuotes()
       .then((data) => {
         if (!cancelled) {
-          setQuotes(data);
+          const filtered = HOME_SYMBOLS
+            .map((sym) => data.find((q) => q.symbol === sym))
+            .filter((q): q is MarketQuote => q != null);
+          setQuotes(filtered);
           setLoading(false);
         }
       })
@@ -62,7 +67,7 @@ export function LiveMarketPrices() {
     return (
       <section id="market-prices" className="rounded-xl border bg-card p-6 shadow-sm">
         <h3 className="text-base font-semibold">{t("home.liveMarket" as never)}</h3>
-        <p className="mt-2 text-sm text-muted-foreground">{t("dashboard.marketDataError")}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{t("home.marketPricesUnavailable" as never)}</p>
       </section>
     );
   }

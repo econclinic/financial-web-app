@@ -83,7 +83,7 @@ export function BannerSlider() {
     <section id="banners" className="relative">
       <a
         href={banner.href}
-        className={`flex flex-col items-center justify-center rounded-2xl bg-gradient-to-r ${banner.gradient} px-6 py-10 text-center text-white shadow-lg transition-all duration-500 sm:py-14`}
+        className={`flex flex-col items-center justify-center rounded-2xl bg-gradient-to-r ${banner.gradient} px-6 py-16 text-center text-white shadow-lg transition-all duration-500 sm:py-14`}
       >
         <h2 className="text-xl font-bold sm:text-2xl">{t(banner.title as never)}</h2>
         <p className="mt-2 text-sm opacity-90 sm:text-base">{t(banner.subtitle as never)}</p>

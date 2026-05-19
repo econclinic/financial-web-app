@@ -23,3 +23,11 @@
 - Added 44 translation keys (en + fa) for all Home Dashboard content
 - Refactored `page.tsx` to compose all 7 sections in mobile-first layout
 - Lint (0 errors) and build (TypeScript + Next.js) passing
+
+### 2026-05-19 — Sprint 1 Review Feedback
+
+- Replaced raw API error messages (e.g. "API error: 503") with user-friendly copy in both en and fa
+- Added `home.marketPricesUnavailable` translation key for market prices error state
+- Increased banner slider vertical padding on mobile (`py-10` → `py-16`) for better hero visual
+- Added Gold, Silver, and S&P 500 (SPX) to backend market data layer (mock provider, service, quotes)
+- Filtered Live Market Prices to show spec'd 5 assets: BTC, ETH, Gold, Silver, S&P 500

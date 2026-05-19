@@ -172,11 +172,12 @@ const en = {
 
   // Home Dashboard
   "home.portfolioOverview": "Portfolio Overview",
-  "home.portfolioUnavailable": "Portfolio data unavailable",
+  "home.portfolioUnavailable": "We can't load your portfolio right now. Please try again in a few minutes.",
   "home.allocation": "Portfolio Allocation",
-  "home.allocationUnavailable": "Allocation data unavailable",
+  "home.allocationUnavailable": "We can't load your allocation right now. Please try again in a few minutes.",
   "home.noPositions": "No positions yet",
   "home.liveMarket": "Live Market Prices",
+  "home.marketPricesUnavailable": "We can't load market prices right now. Please try again in a few minutes.",
   "home.insights": "Insights",
   "home.education": "Education",
   "home.articles": "Articles & News",
@@ -386,11 +387,12 @@ const fa: Record<keyof typeof en, string> = {
 
   // Home Dashboard
   "home.portfolioOverview": "نمای کلی سبد",
-  "home.portfolioUnavailable": "داده‌های سبد دارایی در دسترس نیست",
+  "home.portfolioUnavailable": "در حال حاضر امکان بارگذاری سبد دارایی نیست. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
   "home.allocation": "تخصیص سبد دارایی",
-  "home.allocationUnavailable": "داده‌های تخصیص در دسترس نیست",
+  "home.allocationUnavailable": "در حال حاضر امکان بارگذاری تخصیص نیست. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
   "home.noPositions": "هنوز موقعیتی ندارید",
   "home.liveMarket": "قیمت‌های لحظه‌ای بازار",
+  "home.marketPricesUnavailable": "در حال حاضر امکان بارگذاری قیمت‌ها نیست. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
   "home.insights": "بینش‌ها",
   "home.education": "آموزش",
   "home.articles": "مقالات و اخبار",

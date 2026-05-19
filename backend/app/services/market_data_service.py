@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 SYMBOL_TO_COINGECKO: dict[str, str] = dict(SYMBOL_TO_COINGECKO_ID)
 
 # All symbols the service layer tracks
-ALL_SYMBOLS: list[str] = ["BTC", "ETH", "AAPL"]
+ALL_SYMBOLS: list[str] = ["BTC", "ETH", "AAPL", "GOLD", "SILVER", "SPX"]
 
 # Unified cache for quotes
 _quotes_cache = ProviderCache(default_ttl=60.0)

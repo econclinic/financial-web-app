@@ -17,6 +17,9 @@ _MOCK_ASSETS: dict[str, dict[str, object]] = {
     "BTC": {"name": "Bitcoin", "base_price": 62_450.00},
     "ETH": {"name": "Ethereum", "base_price": 3_180.00},
     "AAPL": {"name": "Apple Inc.", "base_price": 189.50},
+    "GOLD": {"name": "Gold", "base_price": 2_340.00},
+    "SILVER": {"name": "Silver", "base_price": 29.50},
+    "SPX": {"name": "S&P 500", "base_price": 5_280.00},
 }
 
 _rng = random.Random(42)
