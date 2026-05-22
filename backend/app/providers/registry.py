@@ -3,10 +3,14 @@
 Intentionally simple: no plugin system, no dynamic loading, no DI
 framework. Just a lookup that maps symbols to provider instances.
 
-Routing logic:
+Routing logic (when USE_MOCK_ONLY is False):
     crypto symbols  → CoinGecko
     stock symbols   → Finnhub
     unknown symbols → Mock (explicit fallback for demo/unsupported)
+
+When USE_MOCK_ONLY is True, all symbols route to the mock provider.
+This is used during Sprint 1 / development when real provider API
+keys are not yet configured. Set to False once real providers are ready.
 """
 
 from __future__ import annotations
@@ -21,6 +25,10 @@ from app.providers.mock import MockMarketDataProvider
 
 logger = logging.getLogger(__name__)
 
+# Sprint 1: route all symbols to mock provider.
+# Set to False once real provider API keys (CoinGecko, Finnhub) are configured.
+USE_MOCK_ONLY = True
+
 # Singleton provider instances (created once per process)
 _coingecko = CoinGeckoProvider(api_key=settings.COINGECKO_API_KEY)
 _finnhub = FinnhubProvider(api_key=settings.FINNHUB_API_KEY)
@@ -33,10 +41,12 @@ _REAL_PROVIDERS: list[MarketDataProvider] = [_coingecko, _finnhub]
 def get_provider(symbol: str) -> MarketDataProvider:
     """Return the provider responsible for a given symbol.
 
-    Checks real providers in order (CoinGecko, Finnhub). If none
-    support the symbol, returns the mock provider as an explicit
-    fallback for demo/unsupported symbols.
+    When USE_MOCK_ONLY is True, always returns the mock provider.
+    Otherwise checks real providers in order (CoinGecko, Finnhub)
+    and falls back to mock for unsupported symbols.
     """
+    if USE_MOCK_ONLY:
+        return _mock
     sym = symbol.upper()
     for provider in _REAL_PROVIDERS:
         if provider.supports_symbol(sym):

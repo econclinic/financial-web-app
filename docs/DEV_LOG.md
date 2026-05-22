@@ -37,3 +37,5 @@
 - Fixed InsightsCarousel card heights: added `h-[140px] flex flex-col` + `line-clamp-3` for uniform cards
 - Fixed mock provider prices: switched from shared seeded RNG to per-symbol deterministic seeding so each asset gets distinct realistic prices that change hourly
 - Confirmed AllocationDonut data flow is correct — it reflects the user's actual portfolio positions
+- Added `USE_MOCK_ONLY = True` flag in `registry.py` — routes all symbols to mock provider for Sprint 1; set to `False` when real API keys are configured
+- Added `test_mock_only_routes_all_to_mock` test; existing routing tests patched to verify real routing logic is preserved

@@ -33,19 +33,31 @@ from app.providers.types import NormalizedPriceHistory, NormalizedQuote
 
 
 class TestProviderRegistry:
+    """Registry routing tests.
+
+    These tests verify the real routing logic (CoinGecko / Finnhub / Mock).
+    USE_MOCK_ONLY is temporarily disabled via patch so the routing rules
+    are exercised. When USE_MOCK_ONLY is True (Sprint 1 default),
+    get_provider always returns the mock provider — tested separately below.
+    """
+
+    @patch("app.providers.registry.USE_MOCK_ONLY", False)
     def test_crypto_routes_to_coingecko(self):
         assert get_provider("BTC").name == "coingecko"
         assert get_provider("ETH").name == "coingecko"
 
+    @patch("app.providers.registry.USE_MOCK_ONLY", False)
     def test_stock_routes_to_finnhub(self):
         assert get_provider("AAPL").name == "finnhub"
         assert get_provider("MSFT").name == "finnhub"
         assert get_provider("GOOGL").name == "finnhub"
 
+    @patch("app.providers.registry.USE_MOCK_ONLY", False)
     def test_unknown_symbol_routes_to_mock(self):
         assert get_provider("UNKNOWN_SYMBOL").name == "mock"
         assert get_provider("XYZ123").name == "mock"
 
+    @patch("app.providers.registry.USE_MOCK_ONLY", False)
     def test_case_insensitive_routing(self):
         assert get_provider("btc").name == "coingecko"
         assert get_provider("aapl").name == "finnhub"
@@ -55,6 +67,7 @@ class TestProviderRegistry:
         assert has_real_provider("AAPL") is True
         assert has_real_provider("UNKNOWN") is False
 
+    @patch("app.providers.registry.USE_MOCK_ONLY", False)
     def test_get_providers_for_symbols_groups_correctly(self):
         groups = get_providers_for_symbols(["BTC", "ETH", "AAPL", "MSFT"])
 
@@ -64,6 +77,7 @@ class TestProviderRegistry:
         assert "AAPL" in provider_names["finnhub"]
         assert "MSFT" in provider_names["finnhub"]
 
+    @patch("app.providers.registry.USE_MOCK_ONLY", False)
     def test_get_providers_for_symbols_mixed_with_unknown(self):
         groups = get_providers_for_symbols(["BTC", "AAPL", "UNKNOWN"])
 
@@ -74,6 +88,11 @@ class TestProviderRegistry:
 
     def test_get_mock_provider_returns_mock(self):
         assert get_mock_provider().name == "mock"
+
+    def test_mock_only_routes_all_to_mock(self):
+        assert get_provider("BTC").name == "mock"
+        assert get_provider("AAPL").name == "mock"
+        assert get_provider("GOLD").name == "mock"
 
 
 # ── Finnhub Adapter Normalization Tests ────────────────────────────
