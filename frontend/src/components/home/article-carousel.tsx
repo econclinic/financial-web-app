@@ -47,10 +47,10 @@ export function ArticleCarousel() {
   const { t } = useLocale();
 
   return (
-    <section id="articles" className="overflow-hidden">
+    <section id="articles" className="min-w-0 overflow-hidden">
       <h3 className="text-base font-semibold">{t("home.articles" as never)}</h3>
 
-      <div className="mt-3 -mx-4 px-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 scrollbar-none">
+      <div className="mt-3 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 scrollbar-none">
         {PLACEHOLDER_ARTICLES.map((article) => (
           <a
             key={article.id}

@@ -47,10 +47,10 @@ export function InsightsCarousel() {
   const { t } = useLocale();
 
   return (
-    <section id="insights" className="overflow-hidden">
+    <section id="insights" className="min-w-0 overflow-hidden">
       <h3 className="text-base font-semibold">{t("home.insights" as never)}</h3>
 
-      <div className="mt-3 -mx-4 px-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 scrollbar-none">
+      <div className="mt-3 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 scrollbar-none">
         {PLACEHOLDER_INSIGHTS.map((insight) => {
           const Icon = insight.icon;
           return (

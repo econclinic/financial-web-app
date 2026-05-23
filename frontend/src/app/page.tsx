@@ -18,7 +18,7 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen overflow-x-hidden bg-background">
         <Navbar />
 
         <div className="container mx-auto space-y-6 px-4 py-6 sm:px-6 sm:py-8">
