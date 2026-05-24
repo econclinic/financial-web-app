@@ -9,31 +9,36 @@
 
 ## 1. High-Level Architecture
 
-### Current State
+### Current State (Post-Phase I)
 
 ```
-Frontend (Next.js)
+Frontend (Next.js) — Home Dashboard
     │
-    │  GET /api/market-data/latest
-    │  GET /api/market-data/history
-    │  GET /api/market/prices
+    │  GET /api/portfolio/performance?range=7d    (PortfolioOverviewCard)
+    │  GET /api/portfolio/allocation              (AllocationDonut)
+    │  GET /api/market-data/latest                (LiveMarketPrices)
     ▼
 FastAPI API Layer
     │
-    ├── market_data.py ──► get_latest_quotes()
-    │                        ├── get_live_prices() ──► CoinGecko (BTC, ETH)
-    │                        └── mock jitter (AAPL)
+    ├── portfolio.py ──► Performance Engine ──► Snapshot Repository ──► DB
+    │                 ──► Allocation Service ──► Transaction Repo + Market Data Service
     │
-    └── market.py ──────► get_live_prices() ──► CoinGecko
-                           └── 60s in-memory cache (dict)
+    └── market_data.py ──► Market Data Service ──► Provider Registry
+                                                     │
+                                                     ├── CoinGecko (crypto: BTC, ETH)
+                                                     ├── Finnhub (stocks: AAPL, MSFT, etc.)
+                                                     └── Mock (all symbols when USE_MOCK_ONLY=True)
+                                                          └── Per-symbol deterministic PRNG
 ```
 
-**Problems with current architecture:**
-- CoinGecko is called directly from `market_data_service.py` — no abstraction layer.
-- AAPL uses mock data hardcoded in `market_data.py`.
-- No provider interface — adding Finnhub or FRED means writing parallel logic.
-- Cache is a module-level dict — lost on restart, no TTL per key, no stale-while-revalidate.
-- No error categorization (rate limit vs timeout vs provider down).
+> **Note:** The "Pre-Stage 3" problems listed below have been resolved by Phases A–C. They are retained for historical context.
+
+**Problems with the pre-Stage 3 architecture (now resolved):**
+- CoinGecko was called directly from `market_data_service.py` — no abstraction layer. **→ Resolved in Phase A.**
+- AAPL used mock data hardcoded in `market_data.py`. **→ Resolved in Phase B (Finnhub adapter).**
+- No provider interface — adding Finnhub or FRED meant writing parallel logic. **→ Resolved in Phase A (Protocol-based abstraction).**
+- Cache was a module-level dict — lost on restart, no TTL per key, no stale-while-revalidate. **→ Resolved in Phase A (cache.py with per-key TTL).**
+- No error categorization (rate limit vs timeout vs provider down). **→ Resolved in Phase C (structured logging + error classification).**
 
 ### Proposed Architecture
 
@@ -953,13 +958,15 @@ Contribution / Performers:
 | **E — Portfolio Snapshots** | Snapshot model, history API, snapshot service | Phase D | ✅ PR #25 |
 | **F — Portfolio Performance** | Performance returns, closest-snapshot logic | Phase E | ✅ PR #26 |
 | **G — Portfolio Allocation** | Asset allocation, exposure, top positions | Phases A–D | ✅ PR #27 |
+| **H — Performance Engine** | Range returns, drawdown, contribution, performers | Phases E–G | ✅ PR #28 |
+| **I — Home Dashboard** | Frontend dashboard consuming analytics APIs | Phases D–H | ✅ PR #29 |
 | **Cache Hardening** | Unified caching, coalescing, circuit breaker | Phase A | Planned |
 | **Health & Monitoring** | Background jobs, logging | Phases A–D | Planned |
 | **FRED** | Macroeconomic data | Phase A, FRED API key | Planned |
 | **News** | News feed | Phase A | Future |
 | **International** | Twelve Data, multi-provider | Phase A+B | Future |
 
-Phases A–G have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
+Phases A–I have been implemented and merged. Future phases harden the system and extend coverage as the product grows.
 
 ---
 
@@ -1266,18 +1273,206 @@ Dependency flow: API → Allocation Service → Portfolio Repository + Market Da
 
 ---
 
+## Implemented: Portfolio Performance Engine (Phase H)
+
+**PR:** [#28](https://github.com/econclinic/financial-web-app/pull/28)
+
+Comprehensive portfolio performance analytics — range-based returns with max drawdown, per-asset PnL contribution, and best/worst performers.
+
+### New files
+
+- `app/services/analytics/portfolio_performance_engine.py` — Range performance, contribution, and performer calculations
+- `tests/test_portfolio_performance_engine.py` — 31 tests
+
+### Modified files
+
+- `app/schemas/analytics.py` — Added performance engine response schemas (range performance, contribution, performers)
+- `app/api/v1/endpoints/portfolio.py` — Enhanced `GET /performance` with drawdown and `all` range; added `GET /contribution`, `GET /performers`
+- `PROJECT_CONTEXT.md` — Phase H progress section
+- `MARKET_DATA_ARCHITECTURE_PROPOSAL.md` — Phase H architecture and roadmap update
+
+### Market data interaction
+
+- Portfolio-level performance (range returns, drawdown) uses **stored snapshots only** — no market data calls
+- Per-asset contribution and performers use current positions + `market_data_service.get_current_prices_map()` — no direct provider calls
+- Does NOT trigger market data refreshes or modify caching logic
+
+Dependency flow:
+```
+Performance Summary: API → Performance Engine → Snapshot Repository → DB
+Contribution/Performers: API → Performance Engine → Transaction Repository + Market Data Service → DB + Providers
+```
+
+---
+
+## Implemented: Home Dashboard — Frontend Analytics Layer (Phase I)
+
+**PR:** [#29](https://github.com/econclinic/financial-web-app/pull/29)
+
+Phase I is the first frontend consumer of the analytics APIs built in Phases D–H. It introduces a 7-section Home Dashboard that surfaces portfolio performance, allocation, and market data through a mobile-first UI.
+
+### How Phase I interacts with the market data architecture
+
+Phase I adheres to the architecture's core principle: **the frontend consumes normalized, provider-independent schemas and never knows which provider sourced the data.**
+
+```
+Frontend (Next.js)
+    │
+    │  usePortfolioPerformance() hook
+    │  → GET /api/portfolio/performance?range=7d
+    │
+    │  usePortfolioAllocation() hook
+    │  → GET /api/portfolio/allocation
+    │
+    │  LiveMarketPrices component
+    │  → GET /api/market-data/latest
+    │
+    ▼
+FastAPI API Layer
+    │
+    ├── Performance endpoint → Performance Engine → Snapshot Repo → DB
+    ├── Allocation endpoint → Allocation Service → Transaction Repo + Market Data Service
+    └── Market data endpoint → Market Data Service → Provider Registry → Providers
+```
+
+### Data flow decisions
+
+- **Data-fetching isolation:** All API calls happen in page-level hooks (`usePortfolioPerformance`, `usePortfolioAllocation`) or at the component level for self-contained widgets (`LiveMarketPrices`). Components receive data via props and remain purely presentational.
+- **No direct provider calls from frontend:** The frontend calls backend API endpoints only. Provider selection (CoinGecko, Finnhub, mock) is entirely backend-side.
+- **No market data refreshes triggered:** The frontend reads whatever the backend returns. It does not instruct the backend to refresh or invalidate caches.
+- **No new caching layers:** The frontend relies on the backend's existing in-memory cache with per-key TTL.
+- **Error handling:** Backend API errors are caught in hooks and translated to user-friendly messages. Raw error details are never shown to users.
+
+### Mock provider routing (Sprint 1)
+
+During Sprint 1, all market data symbols are routed to the mock provider via `USE_MOCK_ONLY = True` in `backend/app/providers/registry.py`. This is because:
+- Real provider API keys (CoinGecko, Finnhub) are not configured in the development environment
+- The mock provider produces realistic prices using per-symbol deterministic seeding (`symbol + current UTC hour`), ensuring each asset gets distinct prices that change hourly
+
+This routing is easily reversible: set `USE_MOCK_ONLY = False` once real API keys are configured. The frontend code requires zero changes — it consumes the same normalized API schemas regardless of provider.
+
+### Files added/modified
+
+```
+frontend/src/app/page.tsx                                   # Home Dashboard composition
+frontend/src/components/home/                               # 7 section components
+frontend/src/hooks/use-portfolio-performance.tsx            # Performance API hook
+frontend/src/hooks/use-portfolio-allocation.tsx             # Allocation API hook
+backend/app/providers/registry.py                          # USE_MOCK_ONLY flag
+backend/app/providers/mock.py                              # Per-symbol deterministic seeding
+```
+
+No changes to: service layer interfaces, provider adapters, cache behavior, API response schemas, or database models.
+
+---
+
+## Differences from Original Proposal
+
+This section documents where the actual implementation deviates from the original Stage 3 architecture proposal.
+
+### 1. Provider selection via environment variables — Not implemented
+
+**Proposed:** Provider selection configured via environment variables (`MARKET_PROVIDER_CRYPTO=coingecko`, `MARKET_PROVIDER_STOCKS=finnhub`, etc.)
+
+**Actual:** Provider selection is hardcoded in `providers/registry.py` via `supports_symbol()` checks with a linear provider chain (CoinGecko → Finnhub → Mock). A module-level `USE_MOCK_ONLY` flag overrides all routing to mock during Sprint 1.
+
+**Rationale:** The hardcoded registry is simpler and sufficient for the current provider count (3). Environment-variable-based selection adds complexity without clear benefit until more providers are added.
+
+### 2. Request coalescing — Not implemented
+
+**Proposed:** `CoalescingCache` preventing duplicate external API calls when multiple users request the same symbol simultaneously.
+
+**Actual:** Not implemented. The in-memory cache with TTL handles most of the concern — within the TTL window, concurrent requests share the cached value. True coalescing for in-flight requests is deferred.
+
+**Rationale:** Single-process deployment with 60s cache TTL makes thundering herd unlikely at current scale.
+
+### 3. Stale-while-revalidate — Partially implemented
+
+**Proposed:** Return stale cached value immediately while triggering a background refresh.
+
+**Actual:** The cache returns stale data on provider failure (fallback), but does not proactively trigger background refreshes. Stale data is served until TTL expires and the next request triggers a fresh fetch.
+
+**Rationale:** Simpler implementation. Background refresh adds complexity (asyncio task management) that isn't needed at current scale.
+
+### 4. Rate limiter — Not implemented
+
+**Proposed:** Per-provider `RateLimiter` class that pre-checks call count before making requests.
+
+**Actual:** Not implemented. Rate limit detection exists (HTTP 429 responses are logged with `status=rate_limit`), but no pre-check rate limiter prevents calls from being made.
+
+**Rationale:** Free-tier rate limits (CoinGecko 30/min, Finnhub 60/min) have not been hit in practice. The 60s cache TTL naturally throttles call frequency.
+
+### 5. Provider health tracking — Not implemented
+
+**Proposed:** Per-provider health status (healthy/degraded/down) tracked via a ring buffer of recent outcomes, used for provider selection decisions.
+
+**Actual:** Not implemented. Errors are logged with structured fields (provider, error_type, latency_ms) but no aggregate health state is maintained.
+
+**Rationale:** Deferred to the planned "Health & Monitoring" phase. Current structured logging provides sufficient operational visibility.
+
+### 6. Circuit breaker — Not implemented
+
+**Proposed:** Full CLOSED → OPEN → HALF-OPEN state machine for provider failure management.
+
+**Actual:** Not implemented (explicitly marked as future in the proposal).
+
+### 7. Macroeconomic data (FRED), news, international stocks — Not implemented
+
+**Proposed:** FRED adapter, news service (Marketaux/Finnhub), Twelve Data for international stocks.
+
+**Actual:** Not implemented. Only CoinGecko (crypto) and Finnhub (US stocks) adapters exist, plus mock.
+
+**Rationale:** Focus has been on portfolio analytics (Phases D–H) and frontend dashboard (Phase I) rather than expanding provider coverage.
+
+### 8. Frontend market data integration (Phase I) — Simplified
+
+**Proposed:** Dashboard consuming multiple analytics APIs with dynamic insights from contribution/performers APIs.
+
+**Actual:** Sprint 1 delivers a layout skeleton with API-connected portfolio overview and allocation charts, but insights/banners/articles are static placeholders. Dynamic insight generation is deferred to Sprint 2+.
+
+**Rationale:** Mobile-first layout and structure prioritized over dynamic analytics content. Static placeholders establish the UI framework for future dynamic content.
+
+---
+
+## Implementation Status Summary
+
+| Proposal Section | Status | Notes |
+|---|---|---|
+| Provider adapter layer (Protocol-based abstraction) | **Implemented** | CoinGecko, Finnhub, Mock adapters operational |
+| Normalized internal data types (`NormalizedQuote`, etc.) | **Implemented** | All providers produce consistent types |
+| Provider registry (symbol → provider routing) | **Implemented** | Linear check with mock override flag |
+| In-memory cache with TTL | **Implemented** | Per-key TTL, stale fallback on failure |
+| Request coalescing | **Not implemented** | Deferred — cache TTL sufficient at current scale |
+| Stale-while-revalidate (background refresh) | **Partially implemented** | Stale served on failure, no proactive background refresh |
+| Rate limiter (pre-check) | **Not implemented** | Detection exists (429 logging), prevention deferred |
+| Provider health tracking | **Not implemented** | Deferred to Health & Monitoring phase |
+| Circuit breaker | **Not implemented** | Explicitly deferred in proposal |
+| Structured logging / error classification | **Implemented** | All adapters log provider, endpoint, latency, error_type |
+| Observability hooks (counters, metrics) | **Not implemented** | Deferred to Health & Monitoring phase |
+| Multi-provider aggregation | **Not implemented** | Future scalability feature |
+| WebSocket support | **Not implemented** | Future real-time feature |
+| FRED / macroeconomic data | **Not implemented** | Planned future phase |
+| News integration | **Not implemented** | Planned future phase |
+| International stocks (Twelve Data) | **Not implemented** | Future when coverage needed |
+| Portfolio analytics engine | **Implemented** | Phases D–H: metrics, snapshots, performance, allocation, contribution, performers |
+| Frontend dashboard (Phase I) | **Implemented (Sprint 1)** | Layout skeleton with API-connected overview and allocation; static placeholders for insights/banners/articles |
+
+---
+
 ## Summary
 
-This architecture transforms the current monolithic market data integration (CoinGecko hardcoded + mock data) into a modular, provider-agnostic system that:
+This architecture has been implemented through Phases A–I, transforming the original monolithic market data integration (CoinGecko hardcoded + mock data) into a modular, provider-agnostic system that:
 
 - **Decouples** the frontend from external providers entirely.
 - **Normalizes** all external data into stable internal schemas.
 - **Abstracts** each provider behind a common interface for easy swapping/addition.
-- **Caches** aggressively with stale-while-revalidate and request coalescing.
-- **Degrades gracefully** when providers fail (cached data → mock data → clear errors).
+- **Caches** with in-memory TTL and stale fallback on failure (request coalescing and stale-while-revalidate background refresh are planned but not yet implemented).
+- **Degrades gracefully** when providers fail (cached data → clear errors for real-provider symbols; mock data only for explicitly mock symbols).
 - **Scales** from free-tier development to paid production without architectural changes.
 - **Preserves** all existing API contracts — the frontend continues working unchanged throughout the migration.
 - **Computes** portfolio analytics (value, PnL, allocation, diversification) through a clean analytics layer built on the provider abstraction.
 - **Tracks** portfolio value over time via lightweight snapshots that consume analytics outputs, with a history API for charting.
-- **Computes** portfolio performance returns (7d, 30d, 90d, 1y) from stored snapshots without re-querying market data.
+- **Computes** portfolio performance returns (7d, 30d, 90d, 1y, all) from stored snapshots, with max drawdown analysis.
 - **Analyzes** portfolio composition through per-asset allocation weights, asset class exposure, and top position rankings.
+- **Measures** per-asset PnL contribution and identifies best/worst performers by return.
+- **Surfaces** analytics through a mobile-first Home Dashboard with 7 sections consuming backend APIs (Phase I Sprint 1 — static placeholders for insights/banners/articles, live data for portfolio overview, allocation, and market prices).
