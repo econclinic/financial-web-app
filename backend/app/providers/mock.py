@@ -17,9 +17,24 @@ _MOCK_ASSETS: dict[str, dict[str, object]] = {
     "BTC": {"name": "Bitcoin", "base_price": 62_450.00},
     "ETH": {"name": "Ethereum", "base_price": 3_180.00},
     "AAPL": {"name": "Apple Inc.", "base_price": 189.50},
+    "GOLD": {"name": "Gold", "base_price": 2_340.00},
+    "SILVER": {"name": "Silver", "base_price": 29.50},
+    "SPX": {"name": "S&P 500", "base_price": 5_280.00},
 }
 
-_rng = random.Random(42)
+
+def _symbol_rng(symbol: str) -> random.Random:
+    """Return a per-symbol PRNG seeded by symbol + current hour.
+
+    This ensures each asset gets a distinct, realistic price that
+    changes each hour but is deterministic within the same hour.
+    """
+    now = datetime.now(tz=timezone.utc)
+    seed = f"{symbol}:{now.strftime('%Y-%m-%d-%H')}"
+    return random.Random(seed)
+
+
+_history_rng = random.Random(42)
 
 
 class MockMarketDataProvider:
@@ -42,8 +57,9 @@ class MockMarketDataProvider:
             if asset is None:
                 continue
 
+            rng = _symbol_rng(sym)
             base = float(asset["base_price"])  # type: ignore[arg-type]
-            price = round(base * (1 + _rng.uniform(-0.02, 0.02)), 2)
+            price = round(base * (1 + rng.uniform(-0.02, 0.02)), 2)
             change = round(price - base, 2)
             change_pct = round((change / base) * 100, 2)
 
@@ -79,7 +95,7 @@ class MockMarketDataProvider:
             t = now - timedelta(days=days - 1 - i)
             noise = (
                 math.sin(i * 0.5) * base * 0.03
-                + _rng.uniform(-base * 0.01, base * 0.01)
+                + _history_rng.uniform(-base * 0.01, base * 0.01)
             )
             price = round(base + noise, 2)
             points.append(NormalizedPricePoint(timestamp=t, close=price))

@@ -3,7 +3,7 @@
 Uses the provider registry for live data:
 - CoinGecko for crypto (BTC, ETH)
 - Finnhub for stocks (AAPL)
-- Mock provider for unsupported symbols (fallback)
+- Mock provider for commodities/indices (GOLD, SILVER, SPX) and fallback
 
 Price history currently uses the mock provider for all symbols.
 Real price history (CoinGecko market_chart, Finnhub candles) can be
@@ -23,6 +23,9 @@ _SYMBOLS: dict[str, dict[str, float | str]] = {
     "BTC": {"name": "Bitcoin", "base_price": 62_450.00},
     "ETH": {"name": "Ethereum", "base_price": 3_180.00},
     "AAPL": {"name": "Apple Inc.", "base_price": 189.50},
+    "GOLD": {"name": "Gold", "base_price": 2_340.00},
+    "SILVER": {"name": "Silver", "base_price": 29.50},
+    "SPX": {"name": "S&P 500", "base_price": 5_280.00},
 }
 
 

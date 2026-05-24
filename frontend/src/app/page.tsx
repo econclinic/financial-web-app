@@ -1,57 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import { BarChart3, TrendingUp, Wallet, ArrowUpRight } from "lucide-react";
-
-import { MarketDataSection } from "@/components/shared/market-data-section";
 import { Navbar } from "@/components/shared/navbar";
 import { ProtectedRoute } from "@/components/shared/protected-route";
-import { SmartSummaryCard } from "@/components/shared/smart-summary-card";
-import { useLocale } from "@/hooks/use-locale";
-import type { TranslationKey } from "@/lib/i18n/translations";
-import type { MarketQuote } from "@/lib/market-data";
-
-const stats: { labelKey: TranslationKey; value: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { labelKey: "dashboard.portfolioValue", value: "$0.00", icon: Wallet },
-  { labelKey: "dashboard.todaysChange", value: "+$0.00", icon: TrendingUp },
-  { labelKey: "dashboard.totalReturn", value: "0.00%", icon: ArrowUpRight },
-  { labelKey: "dashboard.positions", value: "0", icon: BarChart3 },
-];
+import { BannerSlider } from "@/components/home/banner-slider";
+import { PortfolioOverviewCard } from "@/components/home/portfolio-overview-card";
+import { AllocationDonut } from "@/components/home/allocation-donut";
+import { LiveMarketPrices } from "@/components/home/live-market-prices";
+import { InsightsCarousel } from "@/components/home/insights-carousel";
+import { VideoSection } from "@/components/home/video-section";
+import { ArticleCarousel } from "@/components/home/article-carousel";
+import { usePortfolioPerformance } from "@/hooks/use-portfolio-performance";
+import { usePortfolioAllocation } from "@/hooks/use-portfolio-allocation";
 
 export default function DashboardPage() {
-  const { t } = useLocale();
-  const [quotes, setQuotes] = useState<MarketQuote[]>([]);
+  const performance = usePortfolioPerformance("7d");
+  const allocation = usePortfolioAllocation();
 
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen overflow-x-hidden bg-background">
         <Navbar />
 
-        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {stats.map(({ labelKey, value, icon: Icon }) => (
-              <div
-                key={labelKey}
-                className="rounded-xl border bg-card p-6 shadow-sm"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-primary/10 p-2">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <p className="text-sm font-medium text-muted-foreground">{t(labelKey)}</p>
-                </div>
-                <p className="mt-3 text-2xl font-semibold">{value}</p>
-              </div>
-            ))}
+        <div className="container mx-auto space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+          <BannerSlider />
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <PortfolioOverviewCard
+              data={performance.data}
+              loading={performance.loading}
+              error={performance.error}
+            />
+            <AllocationDonut
+              data={allocation.data}
+              loading={allocation.loading}
+              error={allocation.error}
+            />
           </div>
 
-          {quotes.length > 0 && (
-            <div className="mt-6 sm:mt-8">
-              <SmartSummaryCard quotes={quotes} />
-            </div>
-          )}
+          <LiveMarketPrices />
 
-          <MarketDataSection onQuotesLoaded={setQuotes} />
+          <InsightsCarousel />
+
+          <VideoSection />
+
+          <ArticleCarousel />
         </div>
       </main>
     </ProtectedRoute>

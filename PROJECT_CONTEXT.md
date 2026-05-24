@@ -899,6 +899,12 @@ Introduced a comprehensive portfolio performance analytics engine:
 
 > **Detailed architecture documentation:** See [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for full design decisions, data contracts, caching strategy, error handling model, and implementation details.
 
+#### Phase I — Insights, UX Polish & Education Layer (In Progress)
+
+Transforms existing backend analytics into a user-facing product experience with a mobile-first Home Dashboard. Introduces visual insights, portfolio summaries, educational content (video and articles), and promotional banners. Consumes the portfolio performance, allocation, contribution, and performer APIs built in Phases D–H.
+
+> **Full specification:** See [`docs/PHASE_I_HOME_DASHBOARD.md`](docs/PHASE_I_HOME_DASHBOARD.md) for layout, component structure, API dependencies, and UX rules.
+
 ---
 
 ### For AI agents

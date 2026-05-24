@@ -170,6 +170,51 @@ const en = {
   "toast.themeDark": "Switched to dark mode",
   "toast.themeLight": "Switched to light mode",
 
+  // Home Dashboard
+  "home.portfolioOverview": "Portfolio Overview",
+  "home.portfolioUnavailable": "We can't load your portfolio right now. Please try again in a few minutes.",
+  "home.allocation": "Portfolio Allocation",
+  "home.allocationUnavailable": "We can't load your allocation right now. Please try again in a few minutes.",
+  "home.noPositions": "No positions yet",
+  "home.liveMarket": "Live Market Prices",
+  "home.marketPricesUnavailable": "We can't load market prices right now. Please try again in a few minutes.",
+  "home.insights": "Insights",
+  "home.education": "Education",
+  "home.articles": "Articles & News",
+  "home.readMore": "Read More",
+
+  // Banners
+  "home.bannerLearnTitle": "Learn Smart Investing",
+  "home.bannerLearnSubtitle": "Free courses on portfolio management and market analysis",
+  "home.bannerInsightsTitle": "Portfolio Insights",
+  "home.bannerInsightsSubtitle": "Get AI-powered analysis of your investment portfolio",
+  "home.bannerMarketTitle": "Market Watch",
+  "home.bannerMarketSubtitle": "Track real-time prices for crypto, stocks, and commodities",
+
+  // Insights
+  "home.insightDiversifyTitle": "Diversification",
+  "home.insightDiversifyDesc": "Review your portfolio diversification across asset classes to reduce risk.",
+  "home.insightTopPerformerTitle": "Top Performer",
+  "home.insightTopPerformerDesc": "Identify your best-performing assets and understand what drives returns.",
+  "home.insightConcentrationTitle": "Concentration Risk",
+  "home.insightConcentrationDesc": "Check if any single asset dominates your portfolio weight.",
+  "home.insightDrawdownTitle": "Drawdown Alert",
+  "home.insightDrawdownDesc": "Monitor your portfolio's maximum drawdown over recent periods.",
+
+  // Video
+  "home.videoTitle": "Introduction to Portfolio Management",
+  "home.videoDesc": "Learn the fundamentals of building and managing a diversified investment portfolio.",
+
+  // Articles
+  "home.articleBasicsTitle": "Portfolio Management Basics",
+  "home.articleBasicsDesc": "Understanding the fundamentals of building a well-balanced investment portfolio.",
+  "home.articleDiversifyTitle": "The Power of Diversification",
+  "home.articleDiversifyDesc": "How spreading investments across asset classes can reduce risk and improve returns.",
+  "home.articleRiskTitle": "Risk Management Strategies",
+  "home.articleRiskDesc": "Essential techniques for managing investment risk in volatile markets.",
+  "home.articleMarketTitle": "Market Analysis Guide",
+  "home.articleMarketDesc": "A comprehensive guide to analyzing market trends and making informed decisions.",
+
   // Common
   "common.loading": "Loading...",
   "common.error": "Error",
@@ -339,6 +384,51 @@ const fa: Record<keyof typeof en, string> = {
   "toast.alertDeleted": "هشدار حذف شد",
   "toast.themeDark": "حالت تاریک فعال شد",
   "toast.themeLight": "حالت روشن فعال شد",
+
+  // Home Dashboard
+  "home.portfolioOverview": "نمای کلی سبد",
+  "home.portfolioUnavailable": "در حال حاضر امکان بارگذاری سبد دارایی نیست. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
+  "home.allocation": "تخصیص سبد دارایی",
+  "home.allocationUnavailable": "در حال حاضر امکان بارگذاری تخصیص نیست. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
+  "home.noPositions": "هنوز موقعیتی ندارید",
+  "home.liveMarket": "قیمت‌های لحظه‌ای بازار",
+  "home.marketPricesUnavailable": "در حال حاضر امکان بارگذاری قیمت‌ها نیست. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
+  "home.insights": "بینش‌ها",
+  "home.education": "آموزش",
+  "home.articles": "مقالات و اخبار",
+  "home.readMore": "ادامه مطلب",
+
+  // Banners
+  "home.bannerLearnTitle": "سرمایه‌گذاری هوشمند بیاموزید",
+  "home.bannerLearnSubtitle": "دوره‌های رایگان مدیریت سبد و تحلیل بازار",
+  "home.bannerInsightsTitle": "بینش‌های سبد دارایی",
+  "home.bannerInsightsSubtitle": "تحلیل هوشمند سبد سرمایه‌گذاری شما",
+  "home.bannerMarketTitle": "نظارت بر بازار",
+  "home.bannerMarketSubtitle": "پیگیری قیمت‌های لحظه‌ای رمزارز، سهام و کالاها",
+
+  // Insights
+  "home.insightDiversifyTitle": "تنوع‌بخشی",
+  "home.insightDiversifyDesc": "تنوع سبد دارایی خود را در دسته‌های مختلف بررسی کنید.",
+  "home.insightTopPerformerTitle": "بهترین عملکرد",
+  "home.insightTopPerformerDesc": "بهترین دارایی‌های خود را شناسایی کنید و عوامل بازدهی را درک کنید.",
+  "home.insightConcentrationTitle": "ریسک تمرکز",
+  "home.insightConcentrationDesc": "بررسی کنید آیا دارایی خاصی بر وزن سبد شما غالب است.",
+  "home.insightDrawdownTitle": "هشدار افت",
+  "home.insightDrawdownDesc": "حداکثر افت سبد دارایی خود را در دوره‌های اخیر بررسی کنید.",
+
+  // Video
+  "home.videoTitle": "مقدمه‌ای بر مدیریت سبد دارایی",
+  "home.videoDesc": "اصول ساخت و مدیریت یک سبد سرمایه‌گذاری متنوع را بیاموزید.",
+
+  // Articles
+  "home.articleBasicsTitle": "اصول مدیریت سبد دارایی",
+  "home.articleBasicsDesc": "درک اصول ساخت یک سبد سرمایه‌گذاری متوازن.",
+  "home.articleDiversifyTitle": "قدرت تنوع‌بخشی",
+  "home.articleDiversifyDesc": "چگونه توزیع سرمایه‌گذاری در دسته‌های مختلف ریسک را کاهش می‌دهد.",
+  "home.articleRiskTitle": "استراتژی‌های مدیریت ریسک",
+  "home.articleRiskDesc": "تکنیک‌های ضروری برای مدیریت ریسک سرمایه‌گذاری.",
+  "home.articleMarketTitle": "راهنمای تحلیل بازار",
+  "home.articleMarketDesc": "راهنمای جامع تحلیل روندهای بازار و تصمیم‌گیری آگاهانه.",
 
   // Common
   "common.loading": "بارگذاری...",
