@@ -9,7 +9,7 @@
 **AI Finance WebApp** is a modular financial web application that provides a dashboard for viewing market data, managing authentication, and tracking portfolios with real-time prices.
 
 - **Typical user:** A retail investor or finance enthusiast who wants a single dashboard to monitor prices, manage a watchlist, and analyse market trends.
-- **Current maturity:** Completed MVP — Entering Product Professionalization Stage. The initial roadmap (Phases 1–7) is finished. The app has JWT-based authentication, real-time crypto prices (CoinGecko), mock stock data, a portfolio module with analytics dashboard, a watchlist, four alert rule types (price above/below, daily change above/below) with background trigger worker and in-app notifications, toast notifications, skeleton loaders, meaningful empty states, dark/light theme, bilingual i18n (EN/FA) with full RTL support, responsive mobile-first layouts, and a smart market insights card. The project is now entering Stage 3 — focused on product hardening, external integrations, branding, and infrastructure stabilization.
+- **Current maturity:** Post-MVP — Stage 3 product hardening complete through Phase I. The initial roadmap (Phases 1–7) is finished. Stage 3 delivered a provider abstraction layer (Phases A–C), portfolio analytics engine (Phase D), snapshot/history system (Phase E), performance API (Phase F), allocation/exposure API (Phase G), comprehensive performance engine (Phase H), and a user-facing Home Dashboard with insights and education layer (Phase I). The app has JWT-based authentication, a multi-provider market data system (CoinGecko for crypto, Finnhub for stocks, mock for development), portfolio analytics with performance tracking and allocation analysis, a 7-section mobile-first Home Dashboard, a watchlist, four alert rule types with background trigger worker and in-app notifications, toast notifications, skeleton loaders, meaningful empty states, dark/light theme, bilingual i18n (EN/FA) with full RTL support, and responsive mobile-first layouts.
 
 ---
 
@@ -899,11 +899,68 @@ Introduced a comprehensive portfolio performance analytics engine:
 
 > **Detailed architecture documentation:** See [`MARKET_DATA_ARCHITECTURE_PROPOSAL.md`](MARKET_DATA_ARCHITECTURE_PROPOSAL.md) for full design decisions, data contracts, caching strategy, error handling model, and implementation details.
 
-#### Phase I — Insights, UX Polish & Education Layer (In Progress)
+#### Phase I — Insights, UX Polish & Education Layer (PR #29) ✅
 
-Transforms existing backend analytics into a user-facing product experience with a mobile-first Home Dashboard. Introduces visual insights, portfolio summaries, educational content (video and articles), and promotional banners. Consumes the portfolio performance, allocation, contribution, and performer APIs built in Phases D–H.
+Transforms existing backend analytics into a user-facing product experience with a mobile-first Home Dashboard. The previous dashboard (market data section + smart summary card) was replaced with a structured 7-section layout.
 
 > **Full specification:** See [`docs/PHASE_I_HOME_DASHBOARD.md`](docs/PHASE_I_HOME_DASHBOARD.md) for layout, component structure, API dependencies, and UX rules.
+> **Development log:** See [`docs/DEV_LOG.md`](docs/DEV_LOG.md) for chronological change history.
+
+##### Phase I Summary — Sprint 1 Deliverables
+
+**User-facing features delivered:**
+
+1. **Home Dashboard** (`/`) — New primary landing page with 7 sections in mobile-first vertical layout:
+   - **Banner Slider** — Static promotional banners with CSS scroll-snap horizontal swipe
+   - **Portfolio Overview Card** — Portfolio value and 7-day return from `/api/portfolio/performance?range=7d`
+   - **Allocation Donut** — Recharts pie chart from `/api/portfolio/allocation`
+   - **Live Market Prices** — 5 tracked assets (BTC, ETH, Gold, Silver, S&P 500) with price and 24h change
+   - **Insights Carousel** — Static placeholder cards (diversification, top performer, concentration risk, drawdown) with horizontal swipe
+   - **Video Section** — Embedded YouTube educational video via native iframe
+   - **Article Carousel** — Static educational articles linking to Investopedia with horizontal swipe
+
+2. **47 new translation keys** (EN + FA) covering all dashboard sections, error states, and educational content
+
+3. **RTL/LTR support** — All sections work correctly in both directions using existing Tailwind `ltr:`/`rtl:` prefixes
+
+**Technical decisions adopted:**
+
+- **Data-fetching isolation** — Two custom hooks (`usePortfolioPerformance`, `usePortfolioAllocation`) handle all API calls at the page level. Components receive data exclusively via props and remain purely presentational.
+- **No new NPM dependencies** — Carousels use CSS `scroll-snap`, donut chart uses existing Recharts, video uses native iframe.
+- **Mock provider routing (`USE_MOCK_ONLY = True`)** — All market data symbols route to the mock provider during Sprint 1 since real API keys (CoinGecko, Finnhub) are not configured. Set to `False` in `backend/app/providers/registry.py` when real providers are ready. Easily reversible.
+- **Per-symbol deterministic mock prices** — Mock provider uses per-symbol seeded PRNG (`symbol + current hour`) so each asset gets distinct realistic prices that change hourly but are deterministic within the same hour.
+- **Carousel overflow containment** — Carousels wrapped in `w-full max-w-full overflow-hidden` divs to prevent page-level horizontal scroll. Cards use fixed `w-[300px] shrink-0` sizing. `overflow-x-hidden` on `<main>` as page-level safety net.
+- **Deep linking** — Each section has an anchor ID (`#banners`, `#portfolio-overview`, `#allocation`, `#prices`, `#insights`, `#video`, `#articles`).
+- **Defensive error handling** — User-friendly error messages (not raw API errors) with translations in both languages.
+
+**Known limitations / TODOs for Phase II+:**
+
+- Banners, insights, and articles are **static placeholders** — no CMS, no dynamic insight generation
+- Benchmark comparison in portfolio overview is **not implemented** in Sprint 1 (planned for Sprint 2+)
+- No edit/delete for portfolio positions — transaction form creates new entries only
+- Limited asset universe in the portfolio form (BTC, ETH, AAPL only)
+- "New Transaction" conceptual naming vs. "Add Asset" — product-level rework deferred
+- Insights cards show placeholder text, not dynamically generated from portfolio analytics APIs
+- Video section has a single hardcoded YouTube embed — no curated content management
+
+**Key files (Sprint 1):**
+
+```
+frontend/src/app/page.tsx                                   # Home Dashboard (7 sections composed)
+frontend/src/components/home/banner-slider.tsx              # Banner carousel
+frontend/src/components/home/portfolio-overview-card.tsx    # Portfolio value + return
+frontend/src/components/home/allocation-donut.tsx           # Recharts donut chart
+frontend/src/components/home/live-market-prices.tsx         # 5-asset price list
+frontend/src/components/home/insights-carousel.tsx          # Insight cards carousel
+frontend/src/components/home/video-section.tsx              # YouTube iframe embed
+frontend/src/components/home/article-carousel.tsx           # Article cards carousel
+frontend/src/hooks/use-portfolio-performance.tsx            # Performance data hook
+frontend/src/hooks/use-portfolio-allocation.tsx             # Allocation data hook
+backend/app/providers/registry.py                          # USE_MOCK_ONLY flag
+backend/app/providers/mock.py                              # Per-symbol deterministic pricing
+docs/PHASE_I_HOME_DASHBOARD.md                             # Full specification
+docs/DEV_LOG.md                                            # Development log
+```
 
 ---
 
@@ -934,7 +991,9 @@ Phase 7 was implemented on:
 |---|---|---|---|
 | 1 | Portfolio Module | Done | Record transactions, view positions, P&L, and allocation chart. |
 | 2 | Watchlist | Done | Track favourite symbols with live prices. Add/remove symbols, duplicate prevention, user isolation. |
-| 3 | Real Market Data Providers | In Progress | Provider abstraction layer with CoinGecko (crypto) and Finnhub (US stocks). Registry-based routing, structured logging, observability. Portfolio analytics engine. See [architecture docs](MARKET_DATA_ARCHITECTURE_PROPOSAL.md). |
+| 3 | Real Market Data Providers | Done | Provider abstraction layer with CoinGecko (crypto) and Finnhub (US stocks). Registry-based routing, structured logging, observability. Currently using mock provider (`USE_MOCK_ONLY=True`) until API keys are configured. See [architecture docs](MARKET_DATA_ARCHITECTURE_PROPOSAL.md). |
+| 3a | Portfolio Analytics Engine | Done | Performance metrics (Phase D), snapshots (Phase E), performance API (Phase F), allocation/exposure (Phase G), performance engine with drawdown/contribution/performers (Phase H). |
+| 3b | Home Dashboard (Phase I) | Done | 7-section mobile-first Home Dashboard with portfolio overview, allocation donut, live market prices, insights, video, and articles. Sprint 1 uses static placeholders for banners/insights/articles. |
 | 4 | Economic Calendar | Planned | Surface upcoming earnings, FOMC meetings, and macro data releases. |
 | 5 | Price Alerts | Done | Simple one-time trigger alerts with background worker (60s). Triggered state visible in UI. |
 | 5b | Notifications (MVP) | Done | In-app notifications triggered by price alerts. Read/unread state, navbar badge, dedicated page. |
