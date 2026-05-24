@@ -47,32 +47,34 @@ export function ArticleCarousel() {
   const { t } = useLocale();
 
   return (
-    <section id="articles" className="min-w-0 overflow-hidden">
+    <section id="articles">
       <h3 className="text-base font-semibold">{t("home.articles" as never)}</h3>
 
-      <div className="mt-3 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 scrollbar-none">
-        {PLACEHOLDER_ARTICLES.map((article) => (
-          <a
-            key={article.id}
-            href={article.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="min-w-[260px] shrink-0 snap-start overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md sm:min-w-[300px]"
-          >
-            <div className={`h-28 bg-gradient-to-br ${article.color} flex items-center justify-center`}>
-              <BookOpen className="h-10 w-10 text-muted-foreground/40" />
-            </div>
-            <div className="p-4">
-              <h4 className="text-sm font-semibold line-clamp-2">{t(article.titleKey as never)}</h4>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground line-clamp-3">
-                {t(article.summaryKey as never)}
-              </p>
-              <span className="mt-3 inline-block text-xs font-medium text-primary">
-                {t("home.readMore" as never)}
-              </span>
-            </div>
-          </a>
-        ))}
+      <div className="mt-3 w-full max-w-full overflow-hidden">
+        <div className="flex w-full snap-x snap-mandatory gap-4 overflow-x-auto pb-2 scrollbar-none">
+          {PLACEHOLDER_ARTICLES.map((article) => (
+            <a
+              key={article.id}
+              href={article.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-w-[260px] shrink-0 snap-start overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md sm:min-w-[300px]"
+            >
+              <div className={`h-28 bg-gradient-to-br ${article.color} flex items-center justify-center`}>
+                <BookOpen className="h-10 w-10 text-muted-foreground/40" />
+              </div>
+              <div className="p-4">
+                <h4 className="text-sm font-semibold line-clamp-2">{t(article.titleKey as never)}</h4>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground line-clamp-3">
+                  {t(article.summaryKey as never)}
+                </p>
+                <span className="mt-3 inline-block text-xs font-medium text-primary">
+                  {t("home.readMore" as never)}
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
       </div>
     </section>
   );
