@@ -58,7 +58,7 @@ export function ArticleCarousel() {
               href={article.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="min-w-[260px] shrink-0 snap-start overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md sm:min-w-[300px]"
+              className="w-[300px] shrink-0 snap-start overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md"
             >
               <div className={`h-28 bg-gradient-to-br ${article.color} flex items-center justify-center`}>
                 <BookOpen className="h-10 w-10 text-muted-foreground/40" />

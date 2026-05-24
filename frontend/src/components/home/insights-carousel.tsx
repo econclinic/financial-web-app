@@ -57,7 +57,7 @@ export function InsightsCarousel() {
             return (
               <div
                 key={insight.id}
-                className="flex h-[140px] min-w-[260px] shrink-0 snap-start flex-col rounded-xl border bg-card p-5 shadow-sm sm:min-w-[300px]"
+                className="flex h-[140px] w-[300px] shrink-0 snap-start flex-col rounded-xl border bg-card p-5 shadow-sm"
               >
                 <div className="flex items-center gap-2">
                   <Icon className={`h-5 w-5 shrink-0 ${insight.color}`} />
