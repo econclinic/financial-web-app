@@ -10,10 +10,10 @@
 **AI Finance WebApp** is a modular financial web application that provides a unified dashboard for monitoring market data, managing portfolios, tracking watchlists, setting price alerts, and viewing analytics.
 
 - **Target audience:** Retail investors, finance enthusiasts, and users who want a single platform to track and analyse financial markets.
-- **Current maturity:** Completed MVP — Entering Product Professionalization Stage. The initial roadmap (Phases 1–7) has been fully delivered, covering authentication, market data, portfolio management, watchlists, price alerts, notifications, analytics, and a complete UI/UX transformation (theming, typography, responsive layouts, i18n/RTL, skeleton loaders, toast notifications, and empty states).
-- **Long-term product direction:** The platform is evolving from a functional prototype into a professional-grade financial dashboard. Future stages will introduce live market data integrations, advanced analytics, educational content systems, financial news, alert automation, and professional branding — all built on top of the existing modular architecture.
+- **Current maturity:** Post-MVP — Stage 3 product hardening complete through Phase I. The initial roadmap (Phases 1–7) has been fully delivered, covering authentication, market data, portfolio management, watchlists, price alerts, notifications, analytics, and a complete UI/UX transformation. Stage 3 (Phases A–I) delivered a multi-provider market data system (CoinGecko + Finnhub + mock), portfolio analytics engine with performance tracking and allocation analysis, and a 7-section mobile-first Home Dashboard with insights and educational content.
+- **Long-term product direction:** The platform is evolving from a functional prototype into a professional-grade financial dashboard. Future stages will expand real-time market data coverage, introduce dynamic analytics insights, educational content management, financial news integrations, alert automation, and professional branding — all built on top of the existing modular architecture.
 
-The project has transitioned from MVP development into product professionalization. All new work should reflect production-quality standards.
+The project has transitioned from MVP development into active product professionalization. All new work must reflect production-quality standards.
 
 ---
 
@@ -39,10 +39,14 @@ Every Devin session and contributor should follow this workflow:
 1. **Always read `PROJECT_CONTEXT.md`** before making any changes. This is the single source of truth for the project's current state, architecture, and module documentation.
 2. **Always read `DEVIN_GUIDE.md`** (this file) to understand product direction, architectural principles, and development standards.
 3. **Understand the current branch** before making changes. Confirm which branch you are on and what its relationship is to `main`. Never commit directly to `main`.
-4. **Avoid unrelated refactors.** Keep changes scoped to the task at hand. If you notice something that needs improvement outside your current scope, document it rather than fixing it in the same PR.
+4. **No drive-by refactoring.** Keep changes scoped to the task at hand. Do not modify unrelated code, rename unrelated variables, or restructure unrelated files — even if you believe the change is an improvement. If you notice something that needs improvement outside your current scope, document it in the PR description or open a separate issue. The only exception is fixing a direct bug that blocks your current task.
 5. **Keep pull requests focused and small.** Each PR should address a single concern or feature. Avoid mixing unrelated changes in a single PR.
 6. **Explain architectural decisions clearly.** When making non-obvious technical choices, document the reasoning in the PR description or code comments.
-7. **Document important changes.** Update `PROJECT_CONTEXT.md` when adding new modules, changing architecture, or completing major milestones.
+7. **Documentation is part of "Done".** No task is complete until documentation is updated. Specifically:
+   - **`PROJECT_CONTEXT.md`** must be updated when adding new modules, changing architecture, completing phases, or modifying API contracts.
+   - **`DEVIN_GUIDE.md`** must be updated when architectural principles, development standards, or product direction change.
+   - **`docs/DEV_LOG.md`** must be updated with a dated entry for every meaningful code change.
+   - If a phase is completed, its status must be updated in both `PROJECT_CONTEXT.md` (roadmap table and phase section) and `MARKET_DATA_ARCHITECTURE_PROPOSAL.md` (implementation timeline).
 8. **Preserve backward compatibility when possible.** Avoid breaking existing functionality, API contracts, or data formats unless explicitly required and approved.
 
 ---
@@ -86,36 +90,67 @@ The application should convey a **modern, professional financial dashboard** fee
 - **Avoid cluttered interfaces.** Every element on screen should earn its place. Remove unnecessary decorations, redundant labels, or excessive information density.
 - **Maintain accessibility where possible.** Use semantic HTML, appropriate ARIA attributes, sufficient color contrast, and keyboard-navigable interactive elements.
 
+### Non-Negotiable: Zero Horizontal Overflow
+
+**The app must have NO horizontal scroll on mobile devices (320px to 480px viewport width).** This is a hard requirement — not a guideline.
+
+Any new layout, component, or section must be tested for `overflow-x` issues before submission. Specific rules:
+
+- **Carousels and horizontal scroll containers** must be wrapped in a constrained parent with `w-full max-w-full overflow-hidden`. The inner scroll container uses `overflow-x-auto`.
+- **Cards inside carousels** must use fixed widths (`w-[300px] shrink-0`) — never content-driven `min-w-*` sizing, which causes unpredictable expansion.
+- **Page-level safety net:** The `<main>` element should include `overflow-x-hidden` to prevent any child from causing page-level horizontal scroll.
+- **Verification method:** Before submitting any layout change, verify at viewport widths of 320px, 375px, 414px, 768px, and 1024px that `document.body.scrollWidth === document.body.clientWidth` (i.e., zero overflow).
+- **Flex containers:** Use `min-w-0` on flex children that may contain wide content to prevent flex items from expanding beyond their container.
+
 ---
 
 ## 6. Market Data Strategy
 
-### Current State
+### Current State (Post-Phase I)
 
-- **Crypto (BTC, ETH):** Real-time prices from CoinGecko public API (no key required). Includes 24h change percentage.
-- **Stocks (AAPL):** Mock data with deterministic jitter. Not connected to a real provider.
+The market data system has been fully architected through a **Provider Adapter Layer** (Phases A–C) with two real providers and a mock fallback:
+
+| Provider | Asset Class | Status | Symbols |
+|---|---|---|---|
+| **CoinGecko** | Cryptocurrency | Integrated (adapter complete) | BTC, ETH |
+| **Finnhub** | US Stocks | Integrated (adapter complete) | AAPL, MSFT, GOOGL, AMZN, TSLA, META, NVDA |
+| **Mock** | Development fallback | Active (Sprint 1 default) | All symbols when `USE_MOCK_ONLY=True` |
+
+**Current routing:** During Sprint 1, all symbols route to the mock provider (`USE_MOCK_ONLY = True` in `backend/app/providers/registry.py`). This is a temporary development convenience — set to `False` once real API keys are configured. The mock provider uses per-symbol deterministic seeding for realistic price variation.
+
+**Priority:** Real-time integration via the Provider Adapter pattern is the target state. Mock data is strictly a development fallback, not a production strategy. All new provider work should prioritize connecting real data sources.
+
 - **Price history:** Mock data for all symbols. Real historical data integration is pending.
 - **Benchmark data:** Client-side mock data generated via seeded PRNG.
+- **Home Dashboard:** Consumes `/api/portfolio/performance`, `/api/portfolio/allocation`, and `/api/market-data/latest` — provider-agnostic.
+
+### Implemented Architecture
+
+```
+Frontend → FastAPI API Layer → Service Layer → Provider Registry → Adapters
+                                                    │
+                                                    ├── CoinGecko (crypto)
+                                                    ├── Finnhub (stocks)
+                                                    └── Mock (fallback)
+```
+
+All providers implement the `MarketDataProvider` Protocol defined in `providers/base.py`. The service layer consumes only normalized types (`NormalizedQuote`, `NormalizedPriceHistory`). See `MARKET_DATA_ARCHITECTURE_PROPOSAL.md` for full details.
 
 ### Future Direction
 
-Market data integrations will expand to cover additional asset classes and real-time data sources.
-
-**Preferred providers currently under evaluation:**
-
-| Provider | Focus |
-|---|---|
-| **CoinGecko** | Cryptocurrency prices, market data, historical charts |
-| **Finnhub** | Stock quotes, company profiles, financial news |
-| **Twelve Data** | Stock/forex/crypto time series, technical indicators |
-| **FRED** | Macroeconomic data, economic indicators, interest rates |
+| Provider | Focus | Status |
+|---|---|---|
+| **Twelve Data** | International stock/forex/crypto time series | Planned |
+| **FRED** | Macroeconomic data, economic indicators | Planned |
+| **Marketaux** | Financial news, sentiment analysis | Future |
 
 ### Integration Principles
 
-- **Provider abstraction philosophy.** Each provider should be wrapped in an adapter class or module that implements a common interface. This allows adding, removing, or replacing providers without touching service or API layer code.
-- **Caching expectations.** All provider responses must be cached (in-memory for MVP, Redis or equivalent for production). Cache TTLs should balance freshness against rate limits — typically 60 seconds for live quotes, 5–15 minutes for historical data.
-- **Rate limit awareness.** Every integration must respect the provider's rate limits. Implement request throttling, backoff strategies, and fallback to cached data when limits are approached.
-- **Reliability requirements.** Provider failures must be handled gracefully. Return cached data when available, return clear error responses when not, and never let a provider outage crash the application.
+- **Real-time data is the priority.** Mock data exists only as a development fallback. All new provider work should connect real data sources. Never treat mock data as acceptable for production.
+- **Provider abstraction is mandatory.** Every provider must implement the `MarketDataProvider` Protocol. This allows adding, removing, or replacing providers without touching service or API layer code.
+- **Caching is required.** All provider responses are cached in-memory with per-key TTL (60 seconds for live quotes, 15 minutes for historical data). Redis is planned for production multi-worker deployments.
+- **Rate limit awareness.** Every integration must respect the provider's rate limits. HTTP 429 responses are detected and logged. Fallback to cached data is automatic.
+- **Reliability requirements.** Provider failures are handled gracefully: return cached data when available, return clear error responses when not. Real-provider symbols never silently fall back to mock data — they get stale cache or HTTP 503.
 
 ---
 
@@ -159,14 +194,51 @@ All pull requests should follow these standards:
 
 ---
 
-## 9. Long-Term Product Direction
+## 9. Completed Phases
 
-The platform's long-term vision extends beyond the current MVP into a comprehensive financial tools platform. Future stages may include:
+This section tracks the implementation status of all project phases. It must stay in sync with `PROJECT_CONTEXT.md`.
+
+### MVP Roadmap (Phases 1–7) — Complete
+
+| Phase | Scope | PR |
+|---|---|---|
+| Phase 1 | Design Tokens + Theme System | #12 |
+| Phase 2 | Typography + Font Loading | #13 |
+| Phase 3 | Responsive Layouts | #14 |
+| Phase 4 | i18n + RTL Support | #15 |
+| Phase 5 | Smart Summary Card | #16 |
+| Phase 6 | Benchmark Comparison | #17 |
+| Phase 7 | Alerts Upgrade + UX Polish | #18 |
+
+### Stage 3 — Product Hardening (Phases A–I) — Complete
+
+| Phase | Scope | PR |
+|---|---|---|
+| Phase A | Provider Abstraction Layer | #20 |
+| Phase B | Finnhub Integration + Provider Registry | #21 |
+| Phase C | Reliability & Observability | #22 |
+| Phase D | Portfolio Analytics Engine | #24 |
+| Phase E | Portfolio Snapshot & History API | #25 |
+| Phase F | Portfolio Performance API | #26 |
+| Phase G | Portfolio Allocation & Exposure API | #27 |
+| Phase H | Portfolio Performance Engine | #28 |
+| Phase I | Home Dashboard (Sprint 1) | #29 |
+
+### Current Status
+
+The project is in the **Professionalization and Refactoring** stage. All MVP and Stage 3 phases are complete. Future work focuses on expanding real-time data coverage, dynamic analytics insights, content management, and infrastructure hardening.
+
+---
+
+## 10. Long-Term Product Direction
+
+The platform's long-term vision extends beyond the current implementation into a comprehensive financial tools platform. Future stages may include:
 
 - **Live market systems** — real-time price streaming, WebSocket connections, multi-provider data aggregation.
+- **Dynamic insights** — auto-generated portfolio insights from contribution, performer, and allocation APIs.
 - **Advanced watchlists** — custom grouping, notes, tags, alerts integration, and comparison views.
-- **Portfolio tracking** — historical performance tracking, multi-portfolio support, transaction import from brokerages.
-- **Educational content systems** — courses, tutorials, learning paths, and embedded educational media.
+- **Portfolio management** — edit/delete positions, multi-portfolio support, transaction import from brokerages.
+- **Educational content management** — CMS-driven courses, tutorials, learning paths, and curated video content.
 - **Financial news integrations** — curated news feeds, sentiment analysis, and event-driven alerts.
 - **Analytics infrastructure** — advanced charting, technical indicators, custom dashboards, and data export.
 - **Alert automation** — recurring alerts, multi-condition triggers, notification channels (email, push, SMS).
@@ -176,7 +248,7 @@ Each of these areas will be developed incrementally, following the track-based o
 
 ---
 
-## 10. Session Initialization Rule
+## 11. Session Initialization Rule
 
 > **Mandatory for every Devin session and contributor.**
 
